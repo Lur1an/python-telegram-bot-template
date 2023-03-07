@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "base-bot"
+version = "0.1.0"
+description = "Base bot for telegram projects"
+authors = ["lurian <lurian-code@protonmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
