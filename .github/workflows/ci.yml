@@ -12,10 +12,11 @@ jobs:
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
-
+      - run: |
+        poetry install
+        poetry run pytest
       - name: create requirements
         run: poetry export --without-hashes --format=requirements.txt > requirements.txt
-      - run: poetry run pytest
 
   docker-build:
     runs-on: ubuntu-latest
