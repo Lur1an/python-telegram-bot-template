@@ -1,10 +1,29 @@
-from sqlalchemy.orm import mapped_column, Mapped
+from bson import ObjectId
+from pydantic import BaseModel, Field
 
-from src.db.config import Base
+
+class PyObjectId(ObjectId):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid objectid")
+        return ObjectId(v)
+
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(type="string")
 
 
-class User(Base):
-    __tablename__ = "user"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    telegram_id: Mapped[int] = mapped_column(unique=True, nullable=False)
-    telegram_username: Mapped[str] = mapped_column(nullable=False)
+class MongoEntity(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+
+    class Config:
+        allow_population_by_field_name = True
+        json_encoders = {
+            ObjectId: str,
+        }
+

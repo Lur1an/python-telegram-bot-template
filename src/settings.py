@@ -1,13 +1,20 @@
-from pydantic import BaseSettings
+from typing import List
+
+from pydantic import BaseSettings, validator
 
 
 class DBSettings(BaseSettings):
-    DB_URL: str
-    CREATE_TABLES: bool = False
+    MONGODB_CONNECTION_URL: str
+    MONGODB_DB: str
 
 
 class TelegramSettings(BaseSettings):
+    ADMINS: List[int]
     BOT_TOKEN: str
+
+    @validator("ADMINS", pre=True)
+    def convert_to_list(cls, l) -> List[int]:
+        return [int(s) for s in l.split(",")]
 
 
 class Settings(TelegramSettings, DBSettings):

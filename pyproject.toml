@@ -7,10 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "3.11"
-sqlalchemy = {extras = ["asyncio"], version = "^2.0.5.post1"}
 python-telegram-bot = {extras = ["all"], version = "^20.1"}
 pydantic = "^1.10.6"
-asyncpg = "^0.27.0"
+motor = "^3.1.1"
 
 
 [tool.poetry.group.dev.dependencies]
