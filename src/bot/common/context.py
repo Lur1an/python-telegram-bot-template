@@ -59,6 +59,18 @@ def init_stateful_conversation(conversation_state_type: Type[ConversationState])
     return inner_decorator
 
 
+def inject_conversation_state(conversation_state_type: Type[ConversationState]):
+    def inner_decorator(f: Callable[[Update, ApplicationContext, ConversationState], Awaitable[Any]]):
+        @wraps(f)
+        async def wrapped(update: Update, context: ApplicationContext):
+            state = context.user_data.get_conversation_state(conversation_state_type)
+            return await f(update, context, state)
+
+        return wrapped
+
+    return inner_decorator
+
+
 def cleanup_stateful_conversation(conversation_state_type: Type[ConversationState]):
     """
     Cleans up the user_data dict field that was holding onto the stateful conversation object and returns ConversationHandler.END,

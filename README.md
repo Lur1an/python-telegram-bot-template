@@ -2,8 +2,7 @@
 This repository serves as a template to create new [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
 applications, their python wrapper over the Telegram API is amazing and enables very smooth programming for bots. 
 ### Foreword
-I made this template to provide an implementation for a few things that I always ended up implementing in my bot projects,
-the custom `ApplicationContext` to have typing support for `context.bot_data, context.chat_data, context.user_data`,decorators/wrappers for handlers to cut down on a bit of verbose boilerplate.
+I made this template to provide an implementation for a few things that I always ended up implementing in my *telegram bot* projects, custom `ApplicationContext` for `context.bot_data, context.chat_data, context.user_data` typing, decorators/wrappers for handlers to cut down on  verbose boilerplate needed to have typing support and avoid accessing dictionaries via raw strings. This will take the mind off technicalities and instead put your focus where it belongs, on the requirements and business logic.
 
 ### Configuration
 The app gets its configuration from environment variables that are defined in the classes extending `pydantic.BaseSettings` in `settings.py`
@@ -149,4 +148,164 @@ application = ApplicationBuilder()
     .build()
 ```
 Now all logic defined in custom `__init__` methods will be executed and default instance variables will instantiated.
+### Conversation State
+As you may have noticed, the three State objects that are present in the context have user, chat and global scope. A lot of logic is implemented inside of `ConversationHandler` flows and for this custom state-management is needed, usually inside either `chat_data` or `user_data`, as most of these flows in my experience have been on a per-user basis I have provided a default to achieve this without having to add a new field to your `UserData` class for every conversation-flow that you need to implement.
 
+```python
+class UserData:
+    _conversation_state: Dict[Type[ConversationState], ConversationState] = {}
+
+    def get_conversation_state(self, cls: Type[ConversationState]) -> ConversationState:
+        return self._conversation_state[cls]
+
+    def initialize_conversation_state(self, cls: Type[ConversationState]):
+        self._conversation_state[cls] = cls()
+
+    def clean_up_conversation_state(self, conversation_type: Type[ConversationState]):
+        del self._conversation_state[conversation_type]
+```
+The `UserData` class comes pre-defined with a dictionary to hold conversation state, the type of the object
+itself is used as a key to identify it, this necessitates that for a conversation state type `T` there is at most 1 active conversation ***per user*** that uses this type for its state. 
+
+To avoid leaking memory this object needs to be cleared from the dictionary when you are done with it, to take care of initialization and cleanup I have created two decorators:
+    
+```python
+def init_stateful_conversation(conversation_state_type: Type[ConversationState]):
+    ...
+
+def inject_conversation_state(conversation_state_type: Type[ConversationState]):
+    ...
+
+def cleanup_stateful_conversation(conversation_state_type: Type[ConversationState]):
+    ...
+```
+Using these you can decorate your conversation entry/exit points, to take care of the state and also inject the object into your function as an argument. `cleanup_stateful_conversation` also makes sure to catch any unexpected exceptions and return `Conversation handler.END` when it finishes.
+
+For example, let's define an entry point handler and an exit method for a conversation flow where a user needs to follow multiple steps to fill up a `OrderRequest` object. (I will ignore the implementation details for a `ConversationHandler`, if you want to see a good example of how this works ***[click here](https://docs.python-telegram-bot.org/en/stable/examples.conversationbot.html)***)
+```python
+@init_stateful_conversation(OrderRequest)
+async def start_order_request(update: Update, context: ApplicationContext, order_request: OrderRequest):
+    ...
+
+@inject_conversation_state(OrderRequest)
+async def add_item(update: Update, context: ApplicationContext, order_request: OrderRequest):
+    ...
+
+@cleanup_stateful_conversation(OrderRequest)
+async def file_order(update: Update, context: ApplicationContext, order_request: OrderRequest):
+    # Complete the order, persist to database, send messages, etc...
+    ...
+```
+
+### Utility decorators
+```python
+def admin_command(admin_ids: List[int]):
+    def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+        @wraps(f)
+        async def wrapped(update: Update, context: ApplicationContext):
+            if update.effective_user.id not in admin_ids:
+                return
+            return await f(update, context)
+
+        return wrapped
+
+    return inner_decorator
+```
+This decorator is used to restrict handler access to a group of users defined inside the `admin_ids` list
+
+```python
+def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+    @wraps(f)
+    async def wrapper(update: Update, context: ApplicationContext):
+        result = await f(update, context)
+        try:
+            await context.bot.delete_message(
+                message_id=update.effective_message.id,
+                chat_id=update.effective_chat.id
+            )
+        finally:
+            return result
+
+    return wrapper
+```
+This decorator ensures your handler ***tries*** to delete the message after finishing the logic, `update.effective_message.delete()` from time to time throws exceptions even when it shouldn't, as does `bot.delete_message`, this decorator is a easy and safe way to abstract this away and make sure you tried your best to delete that message.
+```python
+def exit_conversation_on_exception(
+        user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
+):
+    def inner_decorator(f: Callable[[Update, ApplicationContext], Any]):
+
+        @wraps(f)
+        async def wrapped(update: Update, context: ApplicationContext):
+            try:
+                return await f(update, context)
+            except:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=user_message
+                )
+            context.chat_data.conversation_data = None
+            return ConversationHandler.END
+
+        return wrapped
+
+    return inner_decorator
+```
+This decorator catches any unchecked exceptions in your handlers inside of your conversation flow that you annotate with it and sends the poor user that had to interact with your ***(my)*** mess a message.
+### CallbackQuery data injection
+Arbitrary callback data is an awesome feature of *python-telegram-bot*, it increases security of your application (callback-queries are generated on the client-side and can contain malicious payloads) and makes your development workflow easier.
+
+
+Since the smoothest interactions are through inline keyboards your application will be full of `CallbackQueryHandler` flows. The problem is that `callback_data` does not provide a type hint for your objects, making you write the same code over and over again to satisfy the type checker and get type hints:
+```python
+async def sample_handler(update: Update, context: ApplicationContext):
+    my_data = cast(CustomData, context.callback_data)
+    ... #do stuff
+    await update.callback_query.answer()
+```
+I prefer using my decorator:
+```python
+def inject_callback_query(answer_query_after: bool = True):
+    def inner_decorator(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):
+        @wraps(f)
+        async def wrapped(update: Update, context: ApplicationContext):
+            converted_data = cast(CallbackDataType, update.callback_query.data)
+            result = await f(update, context, converted_data)
+            if answer_query_after:
+                await update.callback_query.answer()
+            return result
+
+        return wrapped
+
+    return inner_decorator
+```
+Now you can write your handler like this:
+```python
+@inject_callback_query
+async def sample_handler(update: Update, context: ApplicationContext, my_data: CustomData):
+    ... #do stuff
+```
+Since we are interacting with our `CustomData` type in our `CallbackQueryHandler` most of the time we only have 1 handler for this defined Callback Type and always end up writing:
+```python
+custom_data_callback_handler = CallbackQueryHandler(callback=sample_handler, pattern=CustomData)
+```
+I added another decorator to turn the wrapped function directly into a `CallbackQueryHandler`:
+```python
+def arbitrary_callback_query_handler(query_data_type: CallbackDataType, answer_query_after: bool = True):
+    def inner_decorator(
+            f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]
+    ) -> CallbackQueryHandler:
+        decorator = inject_callback_query(answer_query_after=answer_query_after)
+        wrapped = decorator(f)
+        handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
+        return handler
+
+    return inner_decorator
+```
+This will take care of instantiating your `CallbackQueryHandler`, putting this together with the above sample we can write it like this:
+```python
+@arbitrary_callback_query_handler(CustomData)
+async def sample_handler(update: Update, context: ApplicationContext, my_data: CustomData):
+    ... #do stuff
+```
+Keep in mind that this approach is a bit limited if you want to handle types of `CustomData` callback queries differently depending on other patterns like chat or message content, python-telegram-bot lets you combine patterns together with binary logic operators, as I have rarely used this I have not added parameters to the decorator for this case, I might in the future. Since this is just a template you can also do it yourself for your project!

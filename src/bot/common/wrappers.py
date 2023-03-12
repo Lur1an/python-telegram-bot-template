@@ -11,14 +11,17 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def admin_command(f: Callable[[Update, ApplicationContext], Awaitable[Any]], admin_ids: List[int]):
-    @wraps(f)
-    async def wrapped(update: Update, context: ApplicationContext):
-        if update.effective_user.id not in admin_ids:
-            return
-        return await f(update, context)
+def admin_command(admin_ids: List[int]):
+    def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+        @wraps(f)
+        async def wrapped(update: Update, context: ApplicationContext):
+            if update.effective_user.id not in admin_ids:
+                return
+            return await f(update, context)
 
-    return wrapped
+        return wrapped
+
+    return inner_decorator
 
 
 CallbackDataType = TypeVar("CallbackDataType")
@@ -37,11 +40,6 @@ def arbitrary_callback_query_handler(query_data_type: CallbackDataType, answer_q
 
 
 def inject_callback_query(answer_query_after: bool = True):
-    """
-    Transforms this method into a CallbackQueryHandler for the used CallbackDataType, the callback_query.data is injected into the wrapped function
-    Automatically answers the callback query when the handler is done.
-    """
-
     def inner_decorator(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
@@ -54,31 +52,6 @@ def inject_callback_query(answer_query_after: bool = True):
         return wrapped
 
     return inner_decorator
-
-
-def cleanup_chat(f: Callable[[Update, ApplicationContext, list[tuple[int, int]]], Awaitable[Any]]):
-    """
-    Wrap this telegram callback function to delete all the messages added as tuple(message_id, chat_id)
-    to the list parameter in the function definition after finishing the method call
-    """
-
-    @wraps(f)
-    async def wrapped(update: Update, context: ApplicationContext):
-        delete_after: list[tuple[int, int]] = list()
-        # call method
-        result = await f(update, context, delete_after)
-        # cleanup up
-        for message_id, chat_id in delete_after:
-            try:
-                await context.bot.delete_message(
-                    message_id=message_id,
-                    chat_id=chat_id
-                )
-            except:
-                pass
-        return result
-
-    return wrapped
 
 
 def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
@@ -99,13 +72,6 @@ def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any
 def exit_conversation_on_exception(
         user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
 ):
-    """
-    Safe catch for any exception that escapes, exits the conversation and notifies the user about the failure
-    :param f: callback function
-    :param user_message:
-    :return:
-    """
-
     def inner_decorator(f: Callable[[Update, ApplicationContext], Any]):
 
         @wraps(f)
