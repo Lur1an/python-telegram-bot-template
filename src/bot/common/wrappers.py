@@ -2,9 +2,13 @@ from functools import wraps
 from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable
 
 from telegram import Update
-from telegram.ext import ConversationHandler
+from telegram.ext import ConversationHandler, CallbackQueryHandler
 
 from src.bot.common.context import ApplicationContext
+
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def admin_command(f: Callable[[Update, ApplicationContext], Awaitable[Any]], admin_ids: List[int]):
@@ -20,19 +24,22 @@ def admin_command(f: Callable[[Update, ApplicationContext], Awaitable[Any]], adm
 CallbackDataType = TypeVar("CallbackDataType")
 
 
-def inject_callback_data(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):
+def arbitrary_callback_query_handler(
+        f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]], answer_query_after: bool = True):
     """
-    Automatically extracts callback_data as the correct typeFrom the callback_query and injects it into the wrapped handler function
-    :param f:
-    :return:
+    Transforms this method into a CallbackQueryHandler for the used CallbackDataType, the callback_query.data is injected into the wrapped function
+    Automatically answers the callback query when the handler is done.
     """
 
     @wraps(f)
     async def wrapped(update: Update, context: ApplicationContext):
         converted_data = cast(CallbackDataType, update.callback_query.data)
-        return await f(update, context, converted_data)
+        result = await f(update, context, converted_data)
+        if answer_query_after:
+            await update.callback_query.answer()
+        return result
 
-    return wrapped
+    return CallbackQueryHandler(pattern=CallbackDataType, callback=wrapped)
 
 
 def cleanup_chat(f: Callable[[Update, ApplicationContext, list[tuple[int, int]]], Awaitable[Any]]):
