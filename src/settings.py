@@ -9,12 +9,7 @@ class DBSettings(BaseSettings):
 
 
 class TelegramSettings(BaseSettings):
-    ADMINS: List[int]
     BOT_TOKEN: str
-
-    @validator("ADMINS", pre=True)
-    def convert_to_list(cls, l) -> List[int]:
-        return [int(s) for s in l.split(",")]
 
 
 class Settings(TelegramSettings, DBSettings):

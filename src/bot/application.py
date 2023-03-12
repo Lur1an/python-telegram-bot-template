@@ -1,6 +1,6 @@
 from telegram.ext import ApplicationBuilder, Application, ContextTypes
 
-from src.bot.context import ApplicationContext, ChatData, BotData, UserData
+from src.bot.common.context import ApplicationContext, ChatData, BotData, UserData
 from src.settings import settings
 
 
