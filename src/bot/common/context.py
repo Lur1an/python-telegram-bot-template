@@ -2,7 +2,10 @@ from functools import wraps
 from typing import Iterable, TypeVar, Dict, Generic, Type, Callable, Awaitable, Any
 
 from telegram import Update
-from telegram.ext import CallbackContext, ExtBot, ContextTypes
+from telegram.ext import CallbackContext, ExtBot, ContextTypes, ConversationHandler
+import logging
+
+log = logging.getLogger(__name__)
 
 
 # Define your Custom classes for BotData, ChatData and UserData
@@ -50,12 +53,18 @@ def init_stateful_conversation(f: Callable[[Update, ApplicationContext], Awaitab
 def cleanup_stateful_conversation(f: Callable[[Update, ApplicationContext], Awaitable[Any]],
                                   conversation_state_type: Type[ConversationState]):
     """
-    Cleans up the user_data dict field that was holding onto the stateful conversation object
+    Cleans up the user_data dict field that was holding onto the stateful conversation object and returns ConversationHandler.END,
+    exceptions are ignored to ensure that the conversation state is cleaned up and the handlers ends
     """
 
     @wraps(f)
     async def wrapped(update: Update, context: ApplicationContext):
-        result = await f(update, context)
-        context.user_data.clean_up_conversation_state(conversation_state_type)
+        try:
+            await f(update, context)
+        except Exception as e:
+            log.warning(f"Encountered exception during last step of conversation: {e}")
+        finally:
+            context.user_data.clean_up_conversation_state(conversation_state_type)
+            return ConversationHandler.END
 
     return wrapped

@@ -2,6 +2,7 @@ from functools import wraps
 from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable
 
 from telegram import Update
+from telegram.ext import ConversationHandler
 
 from src.bot.common.context import ApplicationContext
 
@@ -70,3 +71,29 @@ def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any
         return result
 
     return wrapper
+
+
+def exit_conversation_on_exception(
+        f: Callable[[Update, ApplicationContext], Any],
+        user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
+):
+    """
+    Safe catch for any exception that escapes, exits the conversation and notifies the user about the failure
+    :param f: callback function
+    :param user_message:
+    :return:
+    """
+
+    @wraps(f)
+    async def wrapped(update: Update, context: ApplicationContext):
+        try:
+            return await f(update, context)
+        except:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=user_message
+            )
+            context.chat_data.conversation_data = None
+            return ConversationHandler.END
+
+    return wrapped
