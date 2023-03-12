@@ -1,12 +1,12 @@
-from typing import AsyncIterator, TypeVar, Optional
+from typing import AsyncIterator, TypeVar, Optional, ClassVar
 from typing import Generic, Callable
 
-from motor.motor_asyncio import AsyncIOMotorCollection
-from pymongo.results import InsertOneResult
-from src.db.encoders import jsonable_encoder
-
 from bson import ObjectId
+from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
+from pymongo.results import InsertOneResult, UpdateResult
+
+from src.db.encoders import jsonable_encoder
 
 
 class PyObjectId(ObjectId):
@@ -45,13 +45,22 @@ Entity = TypeVar("Entity", bound=MongoEntity)
 class BaseDAO(Generic[Entity]):
     col: AsyncIOMotorCollection
     factory: Callable[[dict], Entity]
+    __collection__: ClassVar[str]
+
+    def __init__(self, db: AsyncIOMotorDatabase):
+        assert self.factory
+        assert self.__collection__
+        self.col = db[self.__collection__]
 
     async def list(self) -> AsyncIterator[Entity]:
         async for entity in self.col.find():
             yield self.factory(**entity)
 
-    async def insert_one(self, entity: Entity) -> InsertOneResult:
+    async def insert(self, entity: Entity) -> InsertOneResult:
         return await self.col.insert_one(jsonable_encoder(entity))
+
+    async def update(self, entity: Entity) -> UpdateResult:
+        return await self.col.update_one({"_id": entity.id}, {"$set": jsonable_encoder(entity)})
 
     async def find_by_id(self, id: str) -> Optional[Entity]:
         result = await self.col.find_one({"_id": id})
@@ -60,3 +69,4 @@ class BaseDAO(Generic[Entity]):
 
     async def exists(self, **kwargs) -> bool:
         return await self.col.count_documents(filter=kwargs)
+

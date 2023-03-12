@@ -39,6 +39,14 @@ class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
     pass
 
 
+context_types = ContextTypes(
+    context=ApplicationContext,
+    chat_data=ChatData,
+    bot_data=BotData,
+    user_data=UserData
+)
+
+
 def init_stateful_conversation(conversation_state_type: Type[ConversationState]):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
         @wraps(f)
