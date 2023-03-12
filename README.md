@@ -1,8 +1,50 @@
 # python-telegram-bot-template
 This repository serves as a template to create new [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
-applications, their python wrapper over the Telegram API is amazing and enables very smooth programming for bots. 
+applications, their python wrapper over the Telegram API is amazing and enables very smooth programming for bots. It doesn't however provide ***defaults*** for persistence, state management and other shortcuts that are necessary for a maintainable and growable software architecture. 
+
+This template is mostly meant for projects that start with quite a bit of complexity and whose requirements are going to evolve as time passes. 
 ### Foreword
-I made this template to provide an implementation for a few things that I always ended up implementing in my *telegram bot* projects, custom `ApplicationContext` for `context.bot_data, context.chat_data, context.user_data` typing, decorators/wrappers for handlers to cut down on  verbose boilerplate needed to have typing support and avoid accessing dictionaries via raw strings. This will take the mind off technicalities and instead put your focus where it belongs, on the requirements and business logic.
+I made this template to provide an implementation for a few things that I always ended up implementing in my *telegram bot* projects, custom `ApplicationContext` for `context.bot_data, context.chat_data, context.user_data` typing, decorators/wrappers for handlers to cut down on a bit of boilerplate and implement common behaviours. This will take the mind off technicalities and instead help put your focus where it belongs, on the project.
+### Run the Bot
+To run the bot you just have to execute `main.py` with the following  environment variables set:
+1. `MONGODB_CONNECTION_URL` needed to conntect to your database, feel free to swap out the persistence layer with anything you prefer or to remove it entirely, MongoDB together with their atlas-cloud database is a nice way to get started prototyping your small projects.
+2. `MONGODB_DATABASE` name of your database
+3. `BOT_TOKEN`you can get one from ***[Botfather](https://t.me/botfather)***
+### Devops and Dependency management
+```yaml
+name: CI
+on:
+  push:
+    branches: [ "master" ]
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: create requirements
+        run: poetry export --without-hashes --format=requirements.txt > requirements.txt
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Build and push image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_TARGET }}
+```
+This simple CI script will get your pipeline started, it uses poetry to export your `pyproject.toml` dependencies as a `requirements.txt` file that is needed for the Docker build, then proceeds to push the built image to your docker repository, afterwards any Continuous Deployment solution may take over from there. 
+Once you have started implementing some business logic you can add a `poetry run pytest` step to the pipeline ***(remember to poetry install first)***.
+
+The template ships with ***[poetry](https://python-poetry.org/)***, if you don't want to use this just delete `pyproject.toml, poetry.lock` and keep a `requirements.txt` file in your project for the docker build.
+
 
 ### Configuration
 The app gets its configuration from environment variables that are defined in the classes extending `pydantic.BaseSettings` in `settings.py`
@@ -309,3 +351,38 @@ async def sample_handler(update: Update, context: ApplicationContext, my_data: C
     ... #do stuff
 ```
 Keep in mind that this approach is a bit limited if you want to handle types of `CustomData` callback queries differently depending on other patterns like chat or message content, python-telegram-bot lets you combine patterns together with binary logic operators, as I have rarely used this I have not added parameters to the decorator for this case, I might in the future. Since this is just a template you can also do it yourself for your project!
+### Project Structure
+I would recommend you keep your code loosely coupled and keep cohesion high, separate your modules by feature:
+```
+├── src
+│   ├── bot
+│   │   ├── application.py
+│   │   ├── common
+│   │   │   ├── context.py
+│   │   │   └── wrappers.py
+│   │   ├── __init__.py
+│   ├── orders
+│   │   │   ├── conversations
+│   │   │   │  ├── create_order.py
+│   │   │   │  ├── edit_order.py
+│   │   │   ├── dao.py
+│   │   │   ├── models.py
+│   │   │   ├── handlers.py
+│   ├── db
+│   │   ├── config.py
+│   │   ├── core.py
+│   │   ├── encoders.py
+│   ├── __init__.py
+│   ├── main.py
+│   ├── resources
+│   └── settings.py
+└── tests
+└── __init__.py
+```
+I added a folder `orders` that could represent a way to add a feature to interact with orders:
++ `dao.py` can contain your class `OrderDAO` and `OrderEntity` to model your database persistence
++ `models.py` can contain other object types you need, like classes for custom callback queries or conversation state
++ `handlers.py` is where you define the handlers needed to interact with this module through the telegram api, export a list of handlers that you import in `application.py` and then add to the `Application` object through `add_handlers()`. This list of handlers has to contain all the handlers of the module
++ `conversations` contains a file for every `ConversationHandler` the module defines, since it takes a lot of code to define a single conversation, with it's states, state-management, fallbacks etc. a single file for every conversation flow seems okay.
+
+These are just examples how the structure could look like.
