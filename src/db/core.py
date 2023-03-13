@@ -52,8 +52,8 @@ class BaseDAO(Generic[Entity]):
         assert self.__collection__
         self.col = db[self.__collection__]
 
-    async def list(self) -> AsyncIterator[Entity]:
-        async for entity in self.col.find():
+    async def list(self, **filters) -> AsyncIterator[Entity]:
+        async for entity in self.col.find(filters=filters):
             yield self.factory(**entity)
 
     async def insert(self, entity: Entity) -> InsertOneResult:
@@ -67,6 +67,5 @@ class BaseDAO(Generic[Entity]):
         if result:
             return self.factory(**result)
 
-    async def exists(self, **kwargs) -> bool:
-        return await self.col.count_documents(filter=kwargs)
-
+    async def exists(self, **filters) -> bool:
+        return await self.col.count_documents(filter=filters)

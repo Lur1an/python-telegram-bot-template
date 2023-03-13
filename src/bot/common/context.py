@@ -1,9 +1,11 @@
 from functools import wraps
-from typing import Iterable, TypeVar, Dict, Generic, Type, Callable, Awaitable, Any
+from typing import Iterable, TypeVar, Dict, Generic, Type, Callable, Awaitable, Any, Optional
 
 from telegram import Update
-from telegram.ext import CallbackContext, ExtBot, ContextTypes, ConversationHandler
+from telegram.ext import CallbackContext, ExtBot, ContextTypes, ConversationHandler, CommandHandler
 import logging
+
+from src.user.persistence import User
 
 log = logging.getLogger(__name__)
 
@@ -11,7 +13,7 @@ log = logging.getLogger(__name__)
 # Define your Custom classes for BotData, ChatData and UserData
 
 class BotData:
-    pass
+    users: Dict[int, User] = {}
 
 
 class ChatData:
@@ -35,8 +37,12 @@ class UserData:
 
 
 class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
-    # Define custom @property methods here that interact with your context
-    pass
+    # Define custom @property and utility methods here that interact with your context
+    def get_cached_user(self, telegram_id: int) -> Optional[User]:
+        return self.bot_data.users.get(telegram_id, None)
+
+    def cache_user(self, user: User):
+        self.bot_data.users[user.telegram_id] = user
 
 
 context_types = ContextTypes(

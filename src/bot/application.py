@@ -2,9 +2,11 @@ from telegram.ext import ApplicationBuilder, Application, ContextTypes
 
 from src.bot.common.context import ApplicationContext, ChatData, BotData, UserData, context_types
 from src.settings import settings
+from src.user.handlers import start
 
 
 async def on_startup(app: Application):
+    app.add_handler(start)
     pass
 
 

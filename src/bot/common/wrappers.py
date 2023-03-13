@@ -1,21 +1,25 @@
 from functools import wraps
-from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable
+from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable, Coroutine, Optional
 
 from telegram import Update
-from telegram.ext import ConversationHandler, CallbackQueryHandler
+from telegram._utils.types import RT
+from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler
 
 from src.bot.common.context import ApplicationContext
 
 import logging
 
+from src.db.config import db
+from src.user.persistence import User, UserDAO
+
 log = logging.getLogger(__name__)
 
 
-def admin_command(admin_ids: List[int]):
+def restricted_action(allowed_users: List[int]):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
-            if update.effective_user.id not in admin_ids:
+            if update.effective_user.id not in allowed_users:
                 return
             return await f(update, context)
 
@@ -85,6 +89,39 @@ def exit_conversation_on_exception(
                 )
             context.chat_data.conversation_data = None
             return ConversationHandler.END
+
+        return wrapped
+
+    return inner_decorator
+
+
+def command_handler(command: str):
+    def inner_decorator(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]) -> CommandHandler:
+        return CommandHandler(
+            command=command,
+            callback=f
+        )
+
+    return inner_decorator
+
+
+def load_user(required: bool = False, error_message: Optional[str] = None):
+    def inner_decorator(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]):
+        @wraps(f)
+        async def wrapped(update: Update, context: ApplicationContext):
+            user = context.get_cached_user(update.effective_user.id)
+            if user is None:
+                dao = UserDAO(db)
+                user = await dao.find_by_telegram_id(update.effective_user.id)
+                context.cache_user(user)
+            if user is None and required:
+                if error_message is not None:
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=error_message
+                    )
+                return
+            return await f(update, context)
 
         return wrapped
 
