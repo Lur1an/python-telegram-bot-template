@@ -83,7 +83,8 @@ def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any
 
 
 def exit_conversation_on_exception(
-        _f: Callable[[Update, ApplicationContext], Any] = None, *,
+        _f: Callable[[Update, ApplicationContext], Any] = None,
+        *,
         user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
 ):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Any]):
@@ -149,35 +150,3 @@ def load_user(
     else:
         return inner_decorator(_f)
 
-
-def next_reply_handler(entry_point: BaseHandler[Update, Any]):
-    def inner_decorator(handler: BaseHandler[Update, Any]):
-
-        @exit_conversation_on_exception
-        async def wrapped_entrypoint_callback(update: Update, context: ApplicationContext):
-            await entry_point.callback(update, context)
-            return 1
-
-        entry_point.callback = wrapped_entrypoint_callback
-
-        async def wrapped_handler_callback(update: Update, context: ApplicationContext):
-            try:
-                await handler.callback(update, context)
-            finally:
-                return ConversationHandler.END
-
-        @command_handler("cancel")
-        async def cancel(update: Update, context: ApplicationContext):
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="Aborting procedure...")
-            return ConversationHandler.END
-
-        handler.callback = wrapped_handler_callback
-        return ConversationHandler(
-            entry_points=[entry_point],
-            states={
-                1: [handler]
-            },
-            fallbacks=[cancel]
-        )
-
-    return inner_decorator
