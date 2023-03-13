@@ -3,7 +3,7 @@ from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable, Corou
 
 from telegram import Update
 from telegram._utils.types import RT
-from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler
+from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler, BaseHandler
 
 from src.bot.common.context import ApplicationContext
 
@@ -31,7 +31,10 @@ def restricted_action(allowed_users: List[int]):
 CallbackDataType = TypeVar("CallbackDataType")
 
 
-def arbitrary_callback_query_handler(query_data_type: CallbackDataType, answer_query_after: bool = True):
+def arbitrary_callback_query_handler(
+        query_data_type: CallbackDataType, *,
+        answer_query_after: bool = True
+):
     def inner_decorator(
             f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]
     ) -> CallbackQueryHandler:
@@ -43,7 +46,10 @@ def arbitrary_callback_query_handler(query_data_type: CallbackDataType, answer_q
     return inner_decorator
 
 
-def inject_callback_query(answer_query_after: bool = True):
+def inject_callback_query(
+        _f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]], *,
+        answer_query_after: bool = True
+):
     def inner_decorator(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
@@ -55,7 +61,10 @@ def inject_callback_query(answer_query_after: bool = True):
 
         return wrapped
 
-    return inner_decorator
+    if _f is None:
+        return inner_decorator
+    else:
+        return inner_decorator(_f)
 
 
 def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
@@ -74,6 +83,7 @@ def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any
 
 
 def exit_conversation_on_exception(
+        _f: Callable[[Update, ApplicationContext], Any], *,
         user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
 ):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Any]):
@@ -82,17 +92,21 @@ def exit_conversation_on_exception(
         async def wrapped(update: Update, context: ApplicationContext):
             try:
                 return await f(update, context)
-            except:
+            except Exception as e:
+                log.error(f"Encountered an error while handling conversation step: {e}")
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
                     text=user_message
                 )
-            context.chat_data.conversation_data = None
-            return ConversationHandler.END
+                context.chat_data.conversation_data = None
+                return ConversationHandler.END
 
         return wrapped
 
-    return inner_decorator
+    if _f is None:
+        return inner_decorator
+    else:
+        return inner_decorator(_f)
 
 
 def command_handler(command: str):
@@ -125,4 +139,36 @@ def load_user(required: bool = False, error_message: Optional[str] = None):
 
         return wrapped
 
+    return inner_decorator
+
+
+def next_reply_handler(entry_point: BaseHandler[Update, Any]):
+    def inner_decorator(handler: BaseHandler[Update, Any]):
+
+        @exit_conversation_on_exception
+        async def wrapped_entrypoint_callback(update: Update, context: ApplicationContext):
+            await entry_point.callback(update, context)
+            return 1
+
+        entry_point.callback = wrapped_entrypoint_callback
+
+        async def wrapped_handler_callback(update: Update, context: ApplicationContext):
+            try:
+                await handler.callback(update, context)
+            finally:
+                return ConversationHandler.END
+
+        @command_handler("cancel")
+        async def cancel(update: Update, context: ApplicationContext):
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="Aborting procedure...")
+            return ConversationHandler.END
+
+        handler.callback = wrapped_handler_callback
+        return ConversationHandler(
+            entry_points=[entry_point],
+            states={
+                1: [handler]
+            },
+            fallbacks=[cancel]
+        )
     return inner_decorator

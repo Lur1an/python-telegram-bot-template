@@ -377,6 +377,7 @@ to delete that message.
 
 ```python
 def exit_conversation_on_exception(
+        _f: Callable[[Update, ApplicationContext], Any], *,
         user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
 ):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Any]):
@@ -385,17 +386,21 @@ def exit_conversation_on_exception(
         async def wrapped(update: Update, context: ApplicationContext):
             try:
                 return await f(update, context)
-            except:
+            except Exception as e:
+                log.error(f"Encountered an error while handling conversation step: {e}")
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
                     text=user_message
                 )
-            context.chat_data.conversation_data = None
-            return ConversationHandler.END
+                context.chat_data.conversation_data = None
+                return ConversationHandler.END
 
         return wrapped
 
-    return inner_decorator
+    if _f is None:
+        return inner_decorator
+    else:
+        return inner_decorator(_f)
 ```
 
 This decorator catches any unchecked exceptions in your handlers inside of your conversation flow that you annotate with
@@ -421,7 +426,10 @@ async def sample_handler(update: Update, context: ApplicationContext):
 I prefer using my decorator:
 
 ```python
-def inject_callback_query(answer_query_after: bool = True):
+def inject_callback_query(
+        _f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]], *,
+        answer_query_after: bool = True
+):
     def inner_decorator(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
@@ -433,7 +441,10 @@ def inject_callback_query(answer_query_after: bool = True):
 
         return wrapped
 
-    return inner_decorator
+    if _f is None:
+        return inner_decorator
+    else:
+        return inner_decorator(_f)
 ```
 
 Now you can write your handler like this:
@@ -454,7 +465,10 @@ custom_data_callback_handler = CallbackQueryHandler(callback=sample_handler, pat
 I added another decorator to turn the wrapped function directly into a `CallbackQueryHandler`:
 
 ```python
-def arbitrary_callback_query_handler(query_data_type: CallbackDataType, answer_query_after: bool = True):
+def arbitrary_callback_query_handler(
+        query_data_type: CallbackDataType, *,
+        answer_query_after: bool = True
+):
     def inner_decorator(
             f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]
     ) -> CallbackQueryHandler:
@@ -524,8 +538,6 @@ I added a folder `orders` that could represent a way to add a feature to interac
 
 These are just examples how the structure could look like.
 
-### User module
-
 ### Cool wrappers
 
 ```python
@@ -540,7 +552,11 @@ def command_handler(command: str):
 ```
 Shortcut to create command handlers
 ```python
-def load_user(required: bool = False, error_message: Optional[str] = None):
+def load_user(
+        _f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]] = None, *,
+        required: bool = False,
+        error_message: Optional[str] = None
+):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
