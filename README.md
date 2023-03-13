@@ -377,11 +377,10 @@ to delete that message.
 
 ```python
 def exit_conversation_on_exception(
-        _f: Callable[[Update, ApplicationContext], Any], *,
+        _f: Callable[[Update, ApplicationContext], Any] = None, *,
         user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
 ):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Any]):
-
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             try:
@@ -427,7 +426,7 @@ I prefer using my decorator:
 
 ```python
 def inject_callback_query(
-        _f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]], *,
+        _f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]] = None, *,
         answer_query_after: bool = True
 ):
     def inner_decorator(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):

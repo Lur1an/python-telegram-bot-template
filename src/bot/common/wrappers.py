@@ -47,7 +47,7 @@ def arbitrary_callback_query_handler(
 
 
 def inject_callback_query(
-        _f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]], *,
+        _f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]] = None, *,
         answer_query_after: bool = True
 ):
     def inner_decorator(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):
@@ -83,7 +83,7 @@ def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any
 
 
 def exit_conversation_on_exception(
-        _f: Callable[[Update, ApplicationContext], Any], *,
+        _f: Callable[[Update, ApplicationContext], Any] = None, *,
         user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
 ):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Any]):
@@ -119,7 +119,12 @@ def command_handler(command: str):
     return inner_decorator
 
 
-def load_user(required: bool = False, error_message: Optional[str] = None):
+def load_user(
+        _f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]] = None,
+        *,
+        required: bool = False,
+        error_message: Optional[str] = None
+):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
@@ -139,7 +144,10 @@ def load_user(required: bool = False, error_message: Optional[str] = None):
 
         return wrapped
 
-    return inner_decorator
+    if _f is None:
+        return inner_decorator
+    else:
+        return inner_decorator(_f)
 
 
 def next_reply_handler(entry_point: BaseHandler[Update, Any]):
@@ -171,4 +179,5 @@ def next_reply_handler(entry_point: BaseHandler[Update, Any]):
             },
             fallbacks=[cancel]
         )
+
     return inner_decorator
