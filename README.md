@@ -203,7 +203,7 @@ replace the usual `ContextTypes.DEFAULT`.
 
 ```python
 class BotData:
-    user_cache: Dict[str, User] = {}
+    user_cache: Dict[int, User] = {}
     pass
 
 
@@ -218,10 +218,10 @@ class UserData:
 class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
     # Define custom @property and utility methods here that interact with your context
     def get_cached_user(self, telegram_id: int) -> Optional[User]:
-        return self.bot_data.users.get(telegram_id, None)
+        return self.bot_data.user_cache.get(telegram_id, None)
 
     def cache_user(self, user: User):
-        self.bot_data.users[user.telegram_id] = user
+        self.bot_data.user_cache[user.telegram_id] = user
 ```
 
 You will find these classes in the `bot.common` module in `context.py`, you can edit the three classes above to define
