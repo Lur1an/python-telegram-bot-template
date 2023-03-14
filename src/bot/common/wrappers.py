@@ -4,7 +4,7 @@ from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable, Corou
 from pydantic import BaseModel
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram._utils.types import RT
-from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler, BaseHandler, MessageHandler
+from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler, BaseHandler, MessageHandler, filters
 from telegram.ext.filters import BaseFilter
 
 from src.bot.common.context import ApplicationContext
@@ -148,6 +148,12 @@ def message_handler(filters: BaseFilter):
     return inner_decorator
 
 
+def arbitrary_message_handler(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]):
+    return MessageHandler(
+        filters=filters.ALL, callback=f
+    )
+
+
 def load_user(
         _f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]] = None,
         *,
@@ -193,4 +199,3 @@ class CallbackButton(BaseModel):
         return InlineKeyboardMarkup([
             [self.to_button(text=text)]
         ])
-
