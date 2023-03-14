@@ -54,11 +54,16 @@ context_types = ContextTypes(
 
 
 def init_stateful_conversation(conversation_state_type: Type[ConversationState]):
-    def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+    def inner_decorator(f: Callable[[Update, ApplicationContext, ConversationState], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             context.user_data.initialize_conversation_state(conversation_state_type)
-            return await f(update, context)
+            state = context.user_data.get_conversation_state(conversation_state_type)
+            return await f(
+                update,
+                context,
+                state
+            )
 
         return wrapped
 
@@ -83,16 +88,23 @@ def cleanup_stateful_conversation(conversation_state_type: Type[ConversationStat
     exceptions are ignored to ensure that the conversation state is cleaned up and the handlers ends
     """
 
-    def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+    def inner_decorator(f: Callable[[Update, ApplicationContext, ConversationState], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             try:
-                await f(update, context)
+                result = await f(
+                    update,
+                    context,
+                    context.user_data.get_conversation_state(conversation_state_type)
+                )
             except Exception as e:
-                log.warning(f"Encountered exception during last step of conversation: {e}")
+                log.warning(
+                    f"Encountered exception during last step of conversation: {e}, ending conversation with User"
+                )
+                result = ConversationHandler.END
             finally:
                 context.user_data.clean_up_conversation_state(conversation_state_type)
-                return ConversationHandler.END
+            return result
 
         return wrapped
 

@@ -295,7 +295,7 @@ itself is used as a key to identify it, this necessitates that for a conversatio
 active conversation ***per user*** that uses this type for its state.
 
 To avoid leaking memory this object needs to be cleared from the dictionary when you are done with it, to take care of
-initialization and cleanup I have created two decorators:
+initialization and cleanup I have created three decorators:
 
 ```python
 def init_stateful_conversation(conversation_state_type: Type[ConversationState]):
@@ -321,17 +321,29 @@ a `ConversationHandler`, if you want to see a good example of how this works
 
 ```python
 @init_stateful_conversation(OrderRequest)
-async def start_order_request(update: Update, context: ApplicationContext, order_request: OrderRequest):
+async def start_order_request(
+        update: Update,
+        context: ApplicationContext,
+        order_request: OrderRequest
+):
     ...
 
 
 @inject_conversation_state(OrderRequest)
-async def add_item(update: Update, context: ApplicationContext, order_request: OrderRequest):
+async def add_item(
+        update: Update,
+        context: ApplicationContext,
+        order_request: OrderRequest
+):
     ...
 
 
 @cleanup_stateful_conversation(OrderRequest)
-async def file_order(update: Update, context: ApplicationContext, order_request: OrderRequest):
+async def file_order(
+        update: Update, 
+        context: ApplicationContext, 
+        order_request: OrderRequest
+):
     # Complete the order, persist to database, send messages, etc...
     ...
 ```
