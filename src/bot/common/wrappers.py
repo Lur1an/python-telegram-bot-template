@@ -155,12 +155,12 @@ def arbitrary_message_handler(f: Callable[[Update, ApplicationContext], Coroutin
 
 
 def load_user(
-        _f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]] = None,
+        _f: Callable[[Update, ApplicationContext, User], Coroutine[Any, Any, RT]] = None,
         *,
         required: bool = False,
         error_message: Optional[str] = None
 ):
-    def inner_decorator(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]):
+    def inner_decorator(f: Callable[[Update, ApplicationContext, User], Coroutine[Any, Any, RT]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             user = context.get_cached_user(update.effective_user.id)
@@ -175,7 +175,7 @@ def load_user(
                         text=error_message
                     )
                 return
-            return await f(update, context)
+            return await f(update, context, user)
 
         return wrapped
 
