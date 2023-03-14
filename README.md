@@ -340,8 +340,8 @@ async def add_item(
 
 @cleanup_stateful_conversation(OrderRequest)
 async def file_order(
-        update: Update, 
-        context: ApplicationContext, 
+        update: Update,
+        context: ApplicationContext,
         order_request: OrderRequest
 ):
     # Complete the order, persist to database, send messages, etc...
@@ -551,9 +551,10 @@ These are just examples how the structure could look like.
 ### Cool wrappers
 
 ```python
-def command_handler(command: str):
+def command_handler(command: str, *, allow_group: bool = False):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]) -> CommandHandler:
         return CommandHandler(
+            filters=None if allow_group else filters.ChatType.PRIVATE,
             command=command,
             callback=f
         )
@@ -561,7 +562,7 @@ def command_handler(command: str):
     return inner_decorator
 ```
 
-Shortcut to create command handlers
+Shortcut to create command handlers, by default they are set to only work in private chats and have to be explicitly activated for group chats.
 
 ```python
 def load_user(
@@ -645,7 +646,9 @@ class CallbackButton(BaseModel):
             [self.to_button(text=text, emoji=emoji)]
         ])
 ```
+
 Now we can rewrite the block before as:
+
 ```python
 class DELETE_ITEM(CallbackButton):
     item: Item
@@ -653,7 +656,9 @@ class DELETE_ITEM(CallbackButton):
 
 reply_markup = DELETE_ITEM(item=item).to_keyboard()
 ```
+
 Now that we have an action we would define it's `CallbackQueryHandler` using the decorator I showed before:
+
 ```python
 @arbitrary_callback_query_handler(DELETE_ITEM)
 async def delete_item(update: Update, context: ApplicationContext, action: DELETE_ITEM):

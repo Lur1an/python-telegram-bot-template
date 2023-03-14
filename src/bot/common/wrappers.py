@@ -128,9 +128,10 @@ def exit_conversation_on_exception(
         return inner_decorator(_f)
 
 
-def command_handler(command: str):
+def command_handler(command: str, *, allow_group: bool = False):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]) -> CommandHandler:
         return CommandHandler(
+            filters=None if allow_group else filters.ChatType.PRIVATE,
             command=command,
             callback=f
         )
@@ -199,3 +200,4 @@ class CallbackButton(BaseModel):
         return InlineKeyboardMarkup([
             [self.to_button(text=text)]
         ])
+
