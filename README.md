@@ -339,20 +339,19 @@ async def file_order(update: Update, context: ApplicationContext, order_request:
 ### Utility decorators
 
 ```python
-def restricted_action(allowed_users: List[int]):
+def restricted_action(is_allowed: Callable[[Update, ApplicationContext], Awaitable[Any]]):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
-            if update.effective_user.id not in allowed_users:
-                return
-            return await f(update, context)
+            if await is_allowed(update, context):
+                return await f(update, context)
 
         return wrapped
 
     return inner_decorator
 ```
 
-This decorator is used to restrict handler access to a group of users defined inside the `allowed_users` list.
+This decorator is used to restrict handler access by using the function passed as parameter to the decorator to check.
 
 ```python
 def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
@@ -451,7 +450,7 @@ Now you can write your handler like this:
 ```python
 @inject_callback_query
 async def sample_handler(update: Update, context: ApplicationContext, my_data: CustomData):
-    ...  #do stuff
+    ...  # do stuff
 ```
 
 Since we are interacting with our `CustomData` type in our `CallbackQueryHandler` most of the time we only have 1
@@ -485,7 +484,7 @@ write it like this:
 ```python
 @arbitrary_callback_query_handler(CustomData)
 async def sample_handler(update: Update, context: ApplicationContext, my_data: CustomData):
-    ...  #do stuff
+    ...  # do stuff
 ```
 
 Keep in mind that this approach is a bit limited if you want to handle types of `CustomData` callback queries
@@ -549,10 +548,13 @@ def command_handler(command: str):
 
     return inner_decorator
 ```
+
 Shortcut to create command handlers
+
 ```python
 def load_user(
-        _f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]] = None, *,
+        _f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]] = None,
+        *,
         required: bool = False,
         error_message: Optional[str] = None
 ):
@@ -577,4 +579,71 @@ def load_user(
 
     return inner_decorator
 ```
-This decorator allows you to pre-load the user before actually handling the event and avoids the usual 'check in cache' -> 'load from database' flow, and if user it not found and you want to send a default message you can also set this from the decorator.
+
+This decorator allows you to pre-load the user before actually handling the event and avoids the usual 'check in
+cache' -> 'load from database' flow, and if user is not found and you want to send a default error message you can also
+set this from the decorator.
+
+### Reducing boilerplate for [user <-> data] interactions
+
+After programming bots for a while I always found myself using the same pattern to define actions on my entities:
+
+```python
+class DeleteItem(BaseModel):
+    item: Item
+
+
+delete_item_button = InlineKeyboardButton(
+    text="❌ DELETE ITEM ❌",
+    callback_data=DeleteItem(item=my_item)
+)
+reply_markup = InlineKeyboardMarkup([
+    [delete_item_button]
+])
+```
+
+This would create a menu with a single button, but you can imagine that there could be more, each one with its own class
+for the action it represents. So I came up with this class that turns itself into a button or a single keyboard (found
+myself often making single-row keyboards), I reference `__class__.__name__` to derive the button text and surround it
+with an emoji if provided, turning a class like `EDIT_ITEM` into either `EDIT` or `EDIT ITEM` buttons.
+
+```python
+class CallbackButton(BaseModel):
+    def to_short_button(self, *, emoji: Optional[str]) -> InlineKeyboardButton:
+        text = self.__class__.__name__.split("_")[0]
+        if emoji:
+            text = f"{emoji} {text} {emoji}"
+        return InlineKeyboardButton(text=text, callback_data=self)
+
+    def to_button(self, *, text: Optional[str] = None, emoji: Optional[str]) -> InlineKeyboardButton:
+        if text is None:
+            text = (' ').join(self.__class__.__name__.split("_"))
+
+        if emoji:
+            text = f"{emoji} {text} {emoji}"
+        return InlineKeyboardButton(text=text, callback_data=self)
+
+    def to_keyboard(
+            self,
+            *,
+            text: Optional[str] = None,
+            emoji: Optional[str] = None
+    ) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup([
+            [self.to_button(text=text, emoji=emoji)]
+        ])
+```
+Now we can rewrite the block before as:
+```python
+class DELETE_ITEM(CallbackButton):
+    item: Item
+
+
+reply_markup = DELETE_ITEM(item=item).to_keyboard()
+```
+Now that we have an action we would define it's `CallbackQueryHandler` using the decorator I showed before:
+```python
+@arbitrary_callback_query_handler(DELETE_ITEM)
+async def delete_item(update: Update, context: ApplicationContext, action: DELETE_ITEM):
+    ...
+```

@@ -1,9 +1,11 @@
 from functools import wraps
-from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable, Coroutine, Optional
+from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable, Coroutine, Optional, Pattern
 
-from telegram import Update
+from pydantic import BaseModel
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram._utils.types import RT
-from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler, BaseHandler
+from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler, BaseHandler, MessageHandler
+from telegram.ext.filters import BaseFilter
 
 from src.bot.common.context import ApplicationContext
 
@@ -15,13 +17,12 @@ from src.user.persistence import User, UserDAO
 log = logging.getLogger(__name__)
 
 
-def restricted_action(allowed_users: List[int]):
+def restricted_action(is_allowed: Callable[[Update, ApplicationContext], Awaitable[Any]]):
     def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
-            if update.effective_user.id not in allowed_users:
-                return
-            return await f(update, context)
+            if await is_allowed(update, context):
+                return await f(update, context)
 
         return wrapped
 
@@ -31,12 +32,29 @@ def restricted_action(allowed_users: List[int]):
 CallbackDataType = TypeVar("CallbackDataType")
 
 
+def regex_callback_query_handler(
+        pattern: str | Pattern[str], *,
+        answer_query_after: bool = True
+):
+    def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]) -> CallbackQueryHandler:
+        @wraps(f)
+        async def wrapped(update: Update, context: ApplicationContext):
+            await f(update, context)
+            if answer_query_after:
+                await update.callback_query.answer()
+
+        return CallbackQueryHandler(
+            pattern=pattern,
+            callback=wrapped
+        )
+
+
 def arbitrary_callback_query_handler(
         query_data_type: CallbackDataType, *,
         answer_query_after: bool = True
 ):
     def inner_decorator(
-            f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]
+            f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]
     ) -> CallbackQueryHandler:
         decorator = inject_callback_query(answer_query_after=answer_query_after)
         wrapped = decorator(f)
@@ -47,10 +65,10 @@ def arbitrary_callback_query_handler(
 
 
 def inject_callback_query(
-        _f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]] = None, *,
+        _f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]] = None, *,
         answer_query_after: bool = True
 ):
-    def inner_decorator(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):
+    def inner_decorator(f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             converted_data = cast(CallbackDataType, update.callback_query.data)
@@ -120,6 +138,16 @@ def command_handler(command: str):
     return inner_decorator
 
 
+def message_handler(filters: BaseFilter):
+    def inner_decorator(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]]) -> MessageHandler:
+        return MessageHandler(
+            filters=filters,
+            callback=f
+        )
+
+    return inner_decorator
+
+
 def load_user(
         _f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, RT]] = None,
         *,
@@ -149,4 +177,20 @@ def load_user(
         return inner_decorator
     else:
         return inner_decorator(_f)
+
+
+class CallbackButton(BaseModel):
+    def to_short_button(self) -> InlineKeyboardButton:
+        text = self.__class__.__name__.split("_")[0]
+        return InlineKeyboardButton(text=text, callback_data=self)
+
+    def to_button(self, text: Optional[str] = None) -> InlineKeyboardButton:
+        if text is None:
+            text = (' ').join(self.__class__.__name__.split("_"))
+        return InlineKeyboardButton(text=text, callback_data=self)
+
+    def to_keyboard(self, text: Optional[str] = None) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup([
+            [self.to_button(text=text)]
+        ])
 
