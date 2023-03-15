@@ -500,21 +500,35 @@ I added another decorator to turn the wrapped function directly into a `Callback
 ```python
 def arbitrary_callback_query_handler(
         query_data_type: CallbackDataType, *,
+        inject: bool = True,
         answer_query_after: bool = True,
         clear_callback_data: bool = False
 ):
-    def inner_decorator(
-            f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]
-    ) -> CallbackQueryHandler:
-        decorator = inject_callback_query(
-            answer_query_after=answer_query_after,
-            clear_callback_data=clear_callback_data
-        )
-        wrapped = decorator(f)
-        handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
-        return handler
+    if inject:
+        def inner_decorator(
+                f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]
+        ) -> CallbackQueryHandler:
+            decorator = inject_callback_query(
+                answer_query_after=answer_query_after,
+                clear_callback_data=clear_callback_data
+            )
+            wrapped = decorator(f)
+            handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
+            return handler
 
-    return inner_decorator
+        return inner_decorator
+    else:
+        def inner_decorator(
+                f: Callable[[Update, ApplicationContext], Awaitable[Any]]
+        ) -> CallbackQueryHandler:
+            if answer_query_after:
+                f = answer_inline_query_after(f)
+            if clear_callback_data:
+                f = drop_callback_data_after(f)
+            handler = CallbackQueryHandler(pattern=query_data_type, callback=f)
+            return handler
+
+        return inner_decorator
 
 ```
 

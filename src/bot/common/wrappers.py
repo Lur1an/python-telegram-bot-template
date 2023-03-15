@@ -1,4 +1,5 @@
 from functools import wraps
+from io import UnsupportedOperation
 from typing import List, Callable, Any, Generic, TypeVar, cast, Awaitable, Coroutine, Optional, Pattern
 
 from pydantic import BaseModel
@@ -49,23 +50,65 @@ def regex_callback_query_handler(
         )
 
 
+def answer_inline_query_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+    @wraps(f)
+    async def wrapped(update: Update, context: ApplicationContext):
+        result = await f(update, context)
+        try:
+            await update.callback_query.answer()
+        except Exception as e:
+            log.error(f"Failed answering callback_query: {e}")
+        finally:
+            return result
+
+    return wrapped
+
+
+def drop_callback_data_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+    @wraps(f)
+    async def wrapped(update: Update, context: ApplicationContext):
+        result = await f(update, context)
+        try:
+            context.drop_callback_data(update.callback_query)
+        except KeyError as e:
+            log.error(f"Failed dropping callback_query_data, couldn't find Key: {e}")
+        finally:
+            return result
+
+    return wrapped
+
+
 def arbitrary_callback_query_handler(
         query_data_type: CallbackDataType, *,
+        inject: bool = True,
         answer_query_after: bool = True,
         clear_callback_data: bool = False
 ):
-    def inner_decorator(
-            f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]
-    ) -> CallbackQueryHandler:
-        decorator = inject_callback_query(
-            answer_query_after=answer_query_after,
-            clear_callback_data=clear_callback_data
-        )
-        wrapped = decorator(f)
-        handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
-        return handler
+    if inject:
+        def inner_decorator(
+                f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]
+        ) -> CallbackQueryHandler:
+            decorator = inject_callback_query(
+                answer_query_after=answer_query_after,
+                clear_callback_data=clear_callback_data
+            )
+            wrapped = decorator(f)
+            handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
+            return handler
 
-    return inner_decorator
+        return inner_decorator
+    else:
+        def inner_decorator(
+                f: Callable[[Update, ApplicationContext], Awaitable[Any]]
+        ) -> CallbackQueryHandler:
+            if answer_query_after:
+                f = answer_inline_query_after(f)
+            if clear_callback_data:
+                f = drop_callback_data_after(f)
+            handler = CallbackQueryHandler(pattern=query_data_type, callback=f)
+            return handler
+
+        return inner_decorator
 
 
 def inject_callback_query(
@@ -78,18 +121,13 @@ def inject_callback_query(
         async def wrapped(update: Update, context: ApplicationContext):
             converted_data = cast(CallbackDataType, update.callback_query.data)
             result = await f(update, context, converted_data)
-            if answer_query_after:
-                try:
-                    await update.callback_query.answer()
-                except Exception as e:
-                    log.error(f"Failed answering callback_query: {e}")
-            if clear_callback_data:
-                try:
-                    context.drop_callback_data(update.callback_query)
-                except KeyError as e:
-                    log.error(f"Failed dropping callback_query_data, couldn't find Key: {e}")
 
             return result
+
+        if answer_query_after:
+            wrapped = answer_inline_query_after(wrapped)
+        if clear_callback_data:
+            wrapped = drop_callback_data_after(wrapped)
 
         return wrapped
 
@@ -201,16 +239,26 @@ def load_user(
 
 
 class CallbackButton(BaseModel):
-    def to_short_button(self) -> InlineKeyboardButton:
+    def to_short_button(self, *, emoji: Optional[str]) -> InlineKeyboardButton:
         text = self.__class__.__name__.split("_")[0]
+        if emoji:
+            text = f"{emoji} {text} {emoji}"
         return InlineKeyboardButton(text=text, callback_data=self)
 
-    def to_button(self, text: Optional[str] = None) -> InlineKeyboardButton:
+    def to_button(self, *, text: Optional[str] = None, emoji: Optional[str]) -> InlineKeyboardButton:
         if text is None:
             text = (' ').join(self.__class__.__name__.split("_"))
+
+        if emoji:
+            text = f"{emoji} {text} {emoji}"
         return InlineKeyboardButton(text=text, callback_data=self)
 
-    def to_keyboard(self, text: Optional[str] = None) -> InlineKeyboardMarkup:
+    def to_keyboard(
+            self,
+            *,
+            text: Optional[str] = None,
+            emoji: Optional[str] = None
+    ) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup([
-            [self.to_button(text=text)]
+            [self.to_button(text=text, emoji=emoji)]
         ])
