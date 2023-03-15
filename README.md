@@ -117,7 +117,7 @@ class BaseDAO(Generic[Entity]):
     async def create_all_indexes():
         for dao in [d(db) for d in BaseDAO.__subclasses__()]:
             await dao._create_indexes()
-                
+
     def __init__(self, db: AsyncIOMotorDatabase):
         assert self.factory
         assert self.__collection__
@@ -137,6 +137,9 @@ class BaseDAO(Generic[Entity]):
         result = await self.col.find_one({"_id": id})
         if result:
             return self.factory(**result)
+
+    async def delete_by_id(self, id: str) -> DeleteResult:
+        return await self.col.delete_one({"_id": id})
 
     async def exists(self, **kwargs) -> bool:
         return await self.col.count_documents(filter=kwargs)

@@ -64,7 +64,7 @@ class BaseDAO(Generic[Entity]):
         self.col = db[self.__collection__]
 
     async def list(self, **filters) -> AsyncIterator[Entity]:
-        async for entity in self.col.find(filters=filters):
+        async for entity in self.col.find(filter=filters):
             yield self.factory(**entity)
 
     async def insert(self, entity: Entity) -> InsertOneResult:
