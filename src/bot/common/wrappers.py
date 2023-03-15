@@ -51,12 +51,16 @@ def regex_callback_query_handler(
 
 def arbitrary_callback_query_handler(
         query_data_type: CallbackDataType, *,
-        answer_query_after: bool = True
+        answer_query_after: bool = True,
+        clear_callback_data: bool = False
 ):
     def inner_decorator(
             f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]
     ) -> CallbackQueryHandler:
-        decorator = inject_callback_query(answer_query_after=answer_query_after)
+        decorator = inject_callback_query(
+            answer_query_after=answer_query_after,
+            clear_callback_data=clear_callback_data
+        )
         wrapped = decorator(f)
         handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
         return handler
@@ -66,7 +70,8 @@ def arbitrary_callback_query_handler(
 
 def inject_callback_query(
         _f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]] = None, *,
-        answer_query_after: bool = True
+        answer_query_after: bool = True,
+        clear_callback_data: bool = False,
 ):
     def inner_decorator(f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]):
         @wraps(f)
@@ -74,7 +79,16 @@ def inject_callback_query(
             converted_data = cast(CallbackDataType, update.callback_query.data)
             result = await f(update, context, converted_data)
             if answer_query_after:
-                await update.callback_query.answer()
+                try:
+                    await update.callback_query.answer()
+                except Exception as e:
+                    log.error(f"Failed answering callback_query: {e}")
+            if clear_callback_data:
+                try:
+                    context.drop_callback_data(update.callback_query)
+                except KeyError as e:
+                    log.error(f"Failed dropping callback_query_data, couldn't find Key: {e}")
+
             return result
 
         return wrapped
@@ -200,4 +214,3 @@ class CallbackButton(BaseModel):
         return InlineKeyboardMarkup([
             [self.to_button(text=text)]
         ])
-

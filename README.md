@@ -431,22 +431,33 @@ async def sample_handler(update: Update, context: ApplicationContext):
     my_data = cast(CustomData, context.callback_data)
     ...  # do stuff
     await update.callback_query.answer()
+    # if you want you can also clear your callback data from your cache
 ```
 
 I prefer using my decorator:
 
 ```python
 def inject_callback_query(
-        _f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]] = None, *,
-        answer_query_after: bool = True
+        _f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]] = None, *,
+        answer_query_after: bool = True,
+        clear_callback_data: bool = False,
 ):
-    def inner_decorator(f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]):
+    def inner_decorator(f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             converted_data = cast(CallbackDataType, update.callback_query.data)
             result = await f(update, context, converted_data)
             if answer_query_after:
-                await update.callback_query.answer()
+                try:
+                    await update.callback_query.answer()
+                except Exception as e:
+                    log.error(f"Failed answering callback_query: {e}")
+            if clear_callback_data:
+                try:
+                    context.drop_callback_data(update.callback_query)
+                except KeyError as e:
+                    log.error(f"Failed dropping callback_query_data, couldn't find Key: {e}")
+
             return result
 
         return wrapped
@@ -477,17 +488,22 @@ I added another decorator to turn the wrapped function directly into a `Callback
 ```python
 def arbitrary_callback_query_handler(
         query_data_type: CallbackDataType, *,
-        answer_query_after: bool = True
+        answer_query_after: bool = True,
+        clear_callback_data: bool = False
 ):
     def inner_decorator(
-            f: Callable[[Update, ApplicationContext, Generic[CallbackDataType]], Awaitable[Any]]
+            f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]
     ) -> CallbackQueryHandler:
-        decorator = inject_callback_query(answer_query_after=answer_query_after)
+        decorator = inject_callback_query(
+            answer_query_after=answer_query_after,
+            clear_callback_data=clear_callback_data
+        )
         wrapped = decorator(f)
         handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
         return handler
 
     return inner_decorator
+
 ```
 
 This will take care of instantiating your `CallbackQueryHandler`, putting this together with the above sample we can
@@ -562,7 +578,8 @@ def command_handler(command: str, *, allow_group: bool = False):
     return inner_decorator
 ```
 
-Shortcut to create command handlers, by default they are set to only work in private chats and have to be explicitly activated for group chats.
+Shortcut to create command handlers, by default they are set to only work in private chats and have to be explicitly
+activated for group chats.
 
 ```python
 def load_user(
