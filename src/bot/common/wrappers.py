@@ -239,7 +239,7 @@ def load_user(
 
 
 class CallbackButton(BaseModel):
-    def to_short_button(self, *, emoji: Optional[str]) -> InlineKeyboardButton:
+    def to_short_button(self, *, emoji: Optional[str] = None) -> InlineKeyboardButton:
         text = self.__class__.__name__.split("_")[0]
         if emoji:
             text = f"{emoji} {text} {emoji}"
