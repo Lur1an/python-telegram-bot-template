@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import AsyncIterator, TypeVar, Optional, ClassVar
 from typing import Generic, Callable
 
@@ -6,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 from pymongo.results import InsertOneResult, UpdateResult
 
+from src.db.config import db
 from src.db.encoders import jsonable_encoder
 
 
@@ -46,6 +48,15 @@ class BaseDAO(Generic[Entity]):
     col: AsyncIOMotorCollection
     factory: Callable[[dict], Entity]
     __collection__: ClassVar[str]
+
+    @abstractmethod
+    async def _create_indexes(self):
+        pass
+
+    @staticmethod
+    async def create_all_indexes():
+        for dao in [d(db) for d in BaseDAO.__subclasses__()]:
+            await dao._create_indexes()
 
     def __init__(self, db: AsyncIOMotorDatabase):
         assert self.factory

@@ -109,6 +109,15 @@ class BaseDAO(Generic[Entity]):
     factory: Callable[[dict], Entity]
     __collection__: ClassVar[str]
 
+    @abstractmethod
+    async def _create_indexes(self):
+        pass
+
+    @staticmethod
+    async def create_all_indexes():
+        for dao in [d(db) for d in BaseDAO.__subclasses__()]:
+            await dao._create_indexes()
+                
     def __init__(self, db: AsyncIOMotorDatabase):
         assert self.factory
         assert self.__collection__
@@ -138,6 +147,8 @@ MongoDB queries you need to set the `factory` field to the actual class, and to 
 to query the entities themselves you need to set the `__collection__` field of your class, the `__init__` method will
 make sure of that, failing the assertion otherwise. As I am not too familiar with python internals and metaprogramming I
 would love and appreciate any advice to smooth out this persistence layer.
+
+Update: I created a way to initialize all your database indexes for your collections at runtime, if you override the abstract private method `_create_indexes` in your subclasses, the `BaseDAO.create_all_indexes()` that is called on the startup method will create them.
 
 Sample implementation:
 
