@@ -15,7 +15,7 @@ I made this template to provide an implementation for a few things that I always
 bot* projects, custom `ApplicationContext` for `context.bot_data, context.chat_data, context.user_data` typing,
 decorators/wrappers for handlers to cut down on a bit of boilerplate and implement common behaviours. This will take the
 mind off technicalities and instead help put your focus where it belongs, on the project.
-
+On a sidenote:  the code inside of `encoders.py` for `jsonable_encoder` is from [tiangolo/fastapi](https://github.com/tiangolo/fastapi)
 ### Run the Bot
 
 To run the bot you just have to execute `main.py` with the following environment variables set:
