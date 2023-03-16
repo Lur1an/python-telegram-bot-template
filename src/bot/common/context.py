@@ -53,21 +53,28 @@ context_types = ContextTypes(
 )
 
 
-def init_stateful_conversation(conversation_state_type: Type[ConversationState]):
-    def inner_decorator(f: Callable[[Update, ApplicationContext, ConversationState], Awaitable[Any]]):
+def init_stateful_conversation(conversation_state_type: Type[ConversationState], inject: bool = True):
+    def inner_decorator(
+            f: Callable[[Update, ApplicationContext, ConversationState], Awaitable[Any]] |
+               Callable[[Update, ApplicationContext], Awaitable[Any]]
+    ):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             context.user_data.initialize_conversation_state(conversation_state_type)
-            state = context.user_data.get_conversation_state(conversation_state_type)
-            return await f(
-                update,
-                context,
-                state
-            )
+            if inject:
+                state = context.user_data.get_conversation_state(conversation_state_type)
+                return await f(
+                    update,
+                    context,
+                    state
+                )
+            else:
+                return await f(update, context)
 
         return wrapped
 
     return inner_decorator
+
 
 
 def inject_conversation_state(conversation_state_type: Type[ConversationState]):
@@ -82,21 +89,30 @@ def inject_conversation_state(conversation_state_type: Type[ConversationState]):
     return inner_decorator
 
 
-def cleanup_stateful_conversation(conversation_state_type: Type[ConversationState]):
+def cleanup_stateful_conversation(
+        conversation_state_type: Type[ConversationState],
+        inject: bool = True
+):
     """
     Cleans up the user_data dict field that was holding onto the stateful conversation object and returns ConversationHandler.END,
     exceptions are ignored to ensure that the conversation state is cleaned up and the handlers ends
     """
 
-    def inner_decorator(f: Callable[[Update, ApplicationContext, ConversationState], Awaitable[Any]]):
+    def inner_decorator(
+            f: Callable[[Update, ApplicationContext, ConversationState], Awaitable[Any]] |
+               Callable[[Update, ApplicationContext], Awaitable[Any]]
+    ):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             try:
-                result = await f(
-                    update,
-                    context,
-                    context.user_data.get_conversation_state(conversation_state_type)
-                )
+                if inject:
+                    result = await f(
+                        update,
+                        context,
+                        context.user_data.get_conversation_state(conversation_state_type)
+                    )
+                else:
+                    result = await f(update, context)
             except Exception as e:
                 log.warning(
                     f"Encountered exception during last step of conversation: {e}, ending conversation with User"
