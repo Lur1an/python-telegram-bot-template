@@ -220,7 +220,6 @@ def load_user(
             if user is None:
                 dao = UserDAO(db)
                 user = await dao.find_by_telegram_id(update.effective_user.id)
-                context.cache_user(user)
             if user is None and required:
                 if error_message is not None:
                     await context.bot.send_message(
@@ -228,6 +227,8 @@ def load_user(
                         text=error_message
                     )
                 return
+            if user is not None:
+                context.cache_user(user)
             return await f(update, context, user)
 
         return wrapped

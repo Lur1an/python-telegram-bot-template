@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import CallbackContext, ExtBot, ContextTypes, ConversationHandler, CommandHandler
 import logging
 
+from src.settings import settings
 from src.user.persistence import User
 
 log = logging.getLogger(__name__)
@@ -33,12 +34,18 @@ class UserData:
         self._conversation_state[cls] = cls()
 
     def clean_up_conversation_state(self, conversation_type: Type[ConversationState]):
-        del self._conversation_state[conversation_type]
+        if conversation_type in self._conversation_state:
+            del self._conversation_state[conversation_type]
 
 
 class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
     # Define custom @property and utility methods here that interact with your context
     def get_cached_user(self, telegram_id: int) -> Optional[User]:
+        if len(self.bot_data.users) >= settings.CACHE_LIMIT:
+            keys = list(self.bot_data.users.keys())
+            keys = keys[0: min(int(settings.CACHE_LIMIT / 100), len(keys) - 1)]
+            for key in keys:
+                del self.bot_data.users[key]
         return self.bot_data.users.get(telegram_id, None)
 
     def cache_user(self, user: User):
@@ -74,7 +81,6 @@ def init_stateful_conversation(conversation_state_type: Type[ConversationState],
         return wrapped
 
     return inner_decorator
-
 
 
 def inject_conversation_state(conversation_state_type: Type[ConversationState]):

@@ -7,8 +7,13 @@ from src.settings import settings
 from src.user.handlers import start
 
 
+async def clear_cache(context: ApplicationContext):
+    context.bot_data.users.clear()
+
+
 async def on_startup(app):
     app.add_handler(start)
+    app.job_queue.run_repeating(clear_cache, interval=settings.CACHE_CLEAR_INTERVAL)
     await BaseDAO.create_all_indexes()
 
 

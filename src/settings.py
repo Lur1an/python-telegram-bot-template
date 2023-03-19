@@ -13,6 +13,8 @@ class TelegramSettings(BaseSettings):
 
 
 class Settings(TelegramSettings, DBSettings):
+    CACHE_CLEAR_INTERVAL: int = 60 * 60
+    CACHE_LIMIT: int = 1000
     pass
 
 
