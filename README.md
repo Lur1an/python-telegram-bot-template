@@ -9,6 +9,10 @@ maintainable and growable software architecture.
 This template is mostly meant for projects that start with quite a bit of complexity and whose requirements are going to
 evolve as time passes.
 
+### Please read!
+The documentation from this point forward may be incorrect, I did some refactoring for a few wrapper and edited a few typings as my new LSP gave me a lot of errors (went from Pycharm to Pyright).
+I will update this documentation in the future.
+
 ### Foreword
 
 I made this template to provide an implementation for a few things that I always ended up implementing in my *telegram

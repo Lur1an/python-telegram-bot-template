@@ -46,7 +46,7 @@ Entity = TypeVar("Entity", bound=MongoEntity)
 
 class BaseDAO(Generic[Entity]):
     col: AsyncIOMotorCollection
-    factory: Callable[[dict], Entity]
+    factory: type[Entity]
     __collection__: ClassVar[str]
 
     @abstractmethod
