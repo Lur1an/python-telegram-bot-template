@@ -30,9 +30,8 @@ class ChatData:
     pass
 
 
-
-    
 ConversationState = TypeVar("ConversationState")
+
 
 class UserData:
     _conversation_state: Dict[type, Any] = {}
