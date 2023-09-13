@@ -1,37 +1,19 @@
 from functools import wraps
-from io import UnsupportedOperation
 from typing import (
-    Callable,
-    Any,
-    Iterable,
-    Tuple,
     Type,
-    TypeVar,
-    Awaitable,
-    Coroutine,
     Optional,
     Pattern,
 )
 
 from pydantic import BaseModel
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram._utils.types import RT
 from telegram.ext import (
-    ConversationHandler,
     CallbackQueryHandler,
-    CommandHandler,
-    BaseHandler,
-    MessageHandler,
-    filters,
 )
-from telegram.ext.filters import BaseFilter
 
 from src.bot.common.context import ApplicationContext
 
 import logging
-
-from src.db.config import db
-from src.user.persistence import User, UserDAO
 
 log = logging.getLogger(__name__)
 

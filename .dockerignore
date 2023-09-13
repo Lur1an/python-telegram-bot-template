@@ -1,0 +1,5 @@
+.env
+/tests
+README.md
+docker-compose.yaml
+.gitignore

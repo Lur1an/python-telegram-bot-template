@@ -121,13 +121,13 @@ def load_user(
     def inner_decorator(f):
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
-            user = context.get_cached_user(update.effective_user.id)  # type: ignore
+            user = context.get_cached_user(update.effective_user.id)
             if user is None:
-                user = await UserDAO(db).find_by_telegram_id(update.effective_user.id)  # type: ignore
+                user = await UserDAO(db).find_by_telegram_id(update.effective_user.id)
             if user is None and required:
                 if error_message is not None:
                     await context.bot.send_message(
-                        chat_id=update.effective_chat.id, text=error_message  # type: ignore
+                        chat_id=update.effective_chat.id, text=error_message
                     )
                 return
             if user is not None:

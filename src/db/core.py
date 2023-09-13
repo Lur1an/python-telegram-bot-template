@@ -1,14 +1,30 @@
 from abc import abstractmethod
-from typing import AsyncIterator, TypeVar, Optional, ClassVar
+from typing import Any, AsyncIterator, TypeVar, Optional, ClassVar
 from typing import Generic, Callable
 
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 from pymongo.results import InsertOneResult, UpdateResult
 
-from src.db.config import db
 from src.db.encoders import jsonable_encoder
+
+class AsyncMongoCollection:
+    __slots__ = ["_collection"]
+
+    def __init__(self, collection):
+        self._collection = collection
+
+    def __getattr__(self, name):
+        return getattr(self._collection, name)
+
+class AsyncMongoDatabase:
+    _db: Any
+
+    def __init__(self, db):
+        self._db = db
+
+    def get_collection(self, collection_name: str) -> Any:
+        return self._db[collection_name]
 
 
 class PyObjectId(ObjectId):
@@ -45,23 +61,26 @@ Entity = TypeVar("Entity", bound=MongoEntity)
 
 
 class BaseDAO(Generic[Entity]):
-    col: AsyncIOMotorCollection
-    factory: type[Entity]
+    __slots__ = ["col", "factory"]
     __collection__: ClassVar[str]
+
+    col: AsyncMongoCollection
+    factory: type[Entity]
+
 
     @abstractmethod
     async def _create_indexes(self):
         pass
 
     @staticmethod
-    async def create_all_indexes():
-        for dao in [d(db) for d in BaseDAO.__subclasses__()]:
+    async def create_all_indexes(db: AsyncMongoDatabase):
+        for dao in [DAOCls(db) for DAOCls in BaseDAO.__subclasses__()]:
             await dao._create_indexes()
 
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db: AsyncMongoDatabase):
         assert self.factory
         assert self.__collection__
-        self.col = db[self.__collection__]
+        self.col = db.get_collection(self.__collection__)
 
     async def list(self, **filters) -> AsyncIterator[Entity]:
         async for entity in self.col.find(filter=filters):
@@ -79,4 +98,4 @@ class BaseDAO(Generic[Entity]):
             return self.factory(**result)
 
     async def exists(self, **filters) -> bool:
-        return await self.col.count_documents(filter=filters)
+        return await self.col.count_documents(filter=filters) != 0

@@ -20,7 +20,6 @@ def init_stateful_conversation(conversation_state_type: type, inject: bool = Tru
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
             user_data = context.user_data
-            assert user_data
             user_data.initialize_conversation_state(conversation_state_type)
             if inject:
                 state = user_data.get_conversation_state(conversation_state_type)
