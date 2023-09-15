@@ -77,28 +77,30 @@ both live in `db.core`.
 ```python
 Entity = TypeVar("Entity", bound=MongoEntity)
 
-
 class BaseDAO(Generic[Entity]):
-    col: AsyncIOMotorCollection
-    factory: Callable[[dict], Entity]
+    __slots__ = ["col", "factory"]
     __collection__: ClassVar[str]
+
+    col: AsyncMongoCollection
+    factory: type[Entity]
+
 
     @abstractmethod
     async def _create_indexes(self):
         pass
 
     @staticmethod
-    async def create_all_indexes():
-        for dao in [d(db) for d in BaseDAO.__subclasses__()]:
+    async def create_all_indexes(db: AsyncMongoDatabase):
+        for dao in [DAOCls(db) for DAOCls in BaseDAO.__subclasses__()]:
             await dao._create_indexes()
 
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db: AsyncMongoDatabase):
         assert self.factory
         assert self.__collection__
-        self.col = db[self.__collection__]
+        self.col = db.get_collection(self.__collection__)
 
     async def list(self, **filters) -> AsyncIterator[Entity]:
-        async for entity in self.col.find(filters=filters):
+        async for entity in self.col.find(filter=filters):
             yield self.factory(**entity)
 
     async def insert(self, entity: Entity) -> InsertOneResult:
@@ -112,11 +114,9 @@ class BaseDAO(Generic[Entity]):
         if result:
             return self.factory(**result)
 
-    async def delete_by_id(self, id: str) -> DeleteResult:
-        return await self.col.delete_one({"_id": id})
+    async def exists(self, **filters) -> bool:
+        return await self.col.count_documents(filter=filters) != 0
 
-    async def exists(self, **kwargs) -> bool:
-        return await self.col.count_documents(filter=kwargs)
 ```
 
 Since `Generic[Entity]` is just a type helper, to actually build the objects from the dictionaries returned by the
@@ -259,8 +259,6 @@ application = ApplicationBuilder()
 .post_init(on_startup)
 .build()
 ```
-
-Now all logic defined in custom `__init__` methods will be executed and default instance variables will instantiated.
 
 ### Conversation State
 
