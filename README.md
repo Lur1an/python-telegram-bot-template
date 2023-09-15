@@ -23,55 +23,25 @@ mind off technicalities and instead help put your focus where it belongs, on the
 On a sidenote:  the code inside of `encoders.py` for `jsonable_encoder` is from [tiangolo/fastapi](https://github.com/tiangolo/fastapi)
 ### Run the Bot
 
-To run the bot you just have to execute `main.py` with the following environment variables set:
+1. Make sure [poetry](https://python-poetry.org) is installed on your system.
+2. Run: `poetry install`
+3. Run: `poetry run python -m src.main`
 
-1. `MONGODB_CONNECTION_URL` needed to conntect to your database, feel free to swap out the persistence layer with
+Make sure the following environment variables are set:
+
+- `MONGODB_CONNECTION_URL` needed to conntect to your database, feel free to swap out the persistence layer with
    anything you prefer or to remove it entirely, MongoDB together with their atlas-cloud database is a nice way to get
    started prototyping your small projects. *In hindsight* I should have just used SQLite with SQLAlchemy, this would
    allow anyone that pulls the template to just start it up with a bot token.
-2. `MONGODB_DATABASE` name of your database
-3. `BOT_TOKEN`you can get one from ***[Botfather](https://t.me/botfather)***
+- `MONGODB_DATABASE` name of your database
+- `BOT_TOKEN`you can get one from ***[Botfather](https://t.me/botfather)***
 
 ### Devops and Dependency management
 
-```yaml
-name: CI
-on:
-  push:
-    branches: [ "master" ]
-jobs:
-  docker-build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-
-      - name: create requirements
-        run: poetry export --without-hashes --format=requirements.txt > requirements.txt
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      - name: Build and push image
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_TARGET }}
-```
-
-This simple CI script will get your pipeline started, it uses poetry to export your `pyproject.toml` dependencies as
-a `requirements.txt` file that is needed for the Docker build, then proceeds to push the built image to your docker
-repository, afterwards any Continuous Deployment solution may take over from there.
-Once you have started implementing some business logic you can add a `poetry run pytest` step to the pipeline
-***(remember to poetry install first)***.
-
-The template ships with ***[poetry](https://python-poetry.org/)***, if you don't want to use this just
-delete `pyproject.toml, poetry.lock` and keep a `requirements.txt` file in your project for the docker build.
+This project comes with a barebone CI pipeline.
+1. It tests your code using pytest, the same as it would locally with `python -m pytest`
+2. It builds the Docker image
+3. It pushes the Docker image to a repository, just open up `ci.yml` and fill out the secrets in your own repository
 
 ### Configuration
 
