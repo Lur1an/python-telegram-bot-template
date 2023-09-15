@@ -3,10 +3,12 @@ from src.db.core import AsyncMongoDatabase, BaseDAO
 import pytest_asyncio
 from src.user.persistence import User, UserDAO
 
+DEFAULT_MONGODB_URL = "mongodb://root:root@localhost:27017"
+
 
 @pytest_asyncio.fixture
 async def db():
-    mongo_client = AsyncIOMotorClient("mongodb://root:root@localhost:27017")
+    mongo_client = AsyncIOMotorClient(DEFAULT_MONGODB_URL)
     mongo_client.drop_database("test")
     database = AsyncMongoDatabase(mongo_client["test"])
     await BaseDAO.create_all_indexes(database)
