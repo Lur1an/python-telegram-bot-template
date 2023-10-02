@@ -115,7 +115,6 @@ def arbitrary_message_handler(
 def load_user(
     _f=None,
     *,
-    required: bool = False,
     error_message: Optional[str] = None,
 ):
     def inner_decorator(f):
@@ -124,15 +123,14 @@ def load_user(
             user = context.get_cached_user(update.effective_user.id)
             if user is None:
                 user = await UserDAO(db).find_by_telegram_id(update.effective_user.id)
-            if user is None and required:
+            if user is None:
                 if error_message is not None:
                     await context.bot.send_message(
                         chat_id=update.effective_chat.id, text=error_message
                     )
-                return
-            if user is not None:
+            else:
                 context.cache_user(user)
-            return await f(update, context, user)
+                return await f(update, context, user)
 
         return wrapped
 

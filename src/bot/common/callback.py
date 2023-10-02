@@ -24,9 +24,10 @@ def regex_callback_query_handler(
     def inner_decorator(f) -> CallbackQueryHandler:
         @wraps(f)
         async def wrapped(update: Update, context: ApplicationContext):
-            await f(update, context)
+            result = await f(update, context)
             if answer_query_after:
                 await update.callback_query.answer()  # type: ignore
+            return result
 
         return CallbackQueryHandler(pattern=pattern, callback=wrapped)  # type: ignore
 
