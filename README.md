@@ -1,3 +1,8 @@
+# 🚧 WORK IN PROGRESS, COOKING UP COOL STUFF...🚧
+I will start migrating a lot of utility functions into https://github.com/Lur1an/ptb-ext in the coming weeks to debloat the template, some of the docs below are probably outdated and will be moved gradually to the `ptb-ext` repo.
+
+Also started working on setting up a good base for persistence using a typical SQL stack with `alembic + SQLAlchemy + SQLite`, 
+
 # python-telegram-bot-template
 
 This repository serves as a template to create
