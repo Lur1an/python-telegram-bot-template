@@ -1,18 +1,13 @@
-from pydantic import BaseSettings
-
+from pydantic_settings import BaseSettings
 
 class DBSettings(BaseSettings):
-    MONGODB_CONNECTION_URL: str
-    MONGODB_DB: str
-
+    DB_PATH: str = "db.sqlite3"
 
 class TelegramSettings(BaseSettings):
     BOT_TOKEN: str
 
-
 class Settings(TelegramSettings, DBSettings):
-    CACHE_CLEAR_INTERVAL: int = 60 * 60
-    CACHE_LIMIT: int = 1000
+    pass
 
 
 settings = Settings() # type: ignore

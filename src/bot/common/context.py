@@ -3,7 +3,6 @@ from typing import (
     Dict,
     Type,
     Any,
-    Optional,
 )
 
 from telegram.ext import (
@@ -12,10 +11,6 @@ from telegram.ext import (
     ContextTypes,
 )
 import logging
-
-from src.settings import settings
-from src.user.persistence import User
-
 log = logging.getLogger(__name__)
 
 
@@ -23,15 +18,13 @@ log = logging.getLogger(__name__)
 
 
 class BotData:
-    users: Dict[int, User] = {}
-
+    pass
 
 class ChatData:
     pass
 
 
 ConversationState = TypeVar("ConversationState")
-
 
 class UserData:
     _conversation_state: Dict[type, Any] = {}
@@ -49,16 +42,7 @@ class UserData:
 
 class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
     # Define custom @property and utility methods here that interact with your context
-    def get_cached_user(self, telegram_id: int) -> Optional[User]:
-        if len(self.bot_data.users) >= settings.CACHE_LIMIT:
-            keys = list(self.bot_data.users.keys())
-            keys = keys[0 : min(int(settings.CACHE_LIMIT / 100), len(keys) - 1)]
-            for key in keys:
-                del self.bot_data.users[key]
-        return self.bot_data.users.get(telegram_id, None)
-
-    def cache_user(self, user: User):
-        self.bot_data.users[user.telegram_id] = user
+    pass
 
 
 context_types = ContextTypes(
