@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 
 class DBSettings(BaseSettings):
-    DB_PATH: str = "db.sqlite3"
+    DB_PATH: str = "template_app.db"
 
 class TelegramSettings(BaseSettings):
     BOT_TOKEN: str

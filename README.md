@@ -25,21 +25,16 @@ bot* projects, custom `ApplicationContext` for `context.bot_data, context.chat_d
 decorators/wrappers for handlers to cut down on a bit of boilerplate and implement common behaviours. This will take the
 mind off technicalities and instead help put your focus where it belongs, on the project.
 
-On a sidenote:  the code inside of `encoders.py` for `jsonable_encoder` is from [tiangolo/fastapi](https://github.com/tiangolo/fastapi)
 ### Run the Bot
 
 1. Make sure [poetry](https://python-poetry.org) is installed on your system.
+2. Run: `poetry shell`
 2. Run: `poetry install`
-3. Run: `poetry run python -m src.main`
+3. Run: `./entrypoint.sh`
 
 Make sure the following environment variables are set:
 
-- `MONGODB_CONNECTION_URL` needed to conntect to your database, feel free to swap out the persistence layer with
-   anything you prefer or to remove it entirely, MongoDB together with their atlas-cloud database is a nice way to get
-   started prototyping your small projects. *In hindsight* I should have just used SQLite with SQLAlchemy, this would
-   allow anyone that pulls the template to just start it up with a bot token.
-- `MONGODB_DATABASE` name of your database
-- `BOT_TOKEN`you can get one from ***[Botfather](https://t.me/botfather)***
+- `BOT_TOKEN` you can get one from ***[Botfather](https://t.me/botfather)***
 
 ### Devops and Dependency management
 
