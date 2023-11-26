@@ -1,45 +1,170 @@
 # 🚧 WORK IN PROGRESS, COOKING UP COOL STUFF...🚧
+
 I will start migrating a lot of utility functions into https://github.com/Lur1an/ptb-ext in the coming weeks to debloat the template, some of the docs below are probably outdated and will be moved gradually to the `ptb-ext` repo.
 
-Also started working on setting up a good base for persistence using a typical SQL stack with `alembic + SQLAlchemy + SQLite`, 
+Also started working on setting up a good base for persistence using a typical SQL stack with `alembic + SQLAlchemy + SQLite`,
 
 # python-telegram-bot-template
 
 This repository serves as a template to create
 new [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
 applications, their python wrapper over the Telegram API is amazing and enables very smooth programming for bots. It
-doesn't however provide ***defaults*** for persistence, state management and other shortcuts that are necessary for a
+doesn't however provide **_defaults_** for persistence, state management and other shortcuts that are necessary for a
 maintainable and growable software architecture.
 
 This template is mostly meant for projects that start with quite a bit of complexity and whose requirements are going to
 evolve as time passes.
 
 ### Please read!
+
 The documentation from this point forward may be incorrect, I did some refactoring for a few wrapper and edited a few typings as my new LSP gave me a lot of errors (went from Pycharm to Pyright).
 I will update this documentation in the future.
 
 ### Foreword
 
-I made this template to provide an implementation for a few things that I always ended up implementing in my *telegram
-bot* projects, custom `ApplicationContext` for `context.bot_data, context.chat_data, context.user_data` typing,
+I made this template to provide an implementation for a few things that I always ended up implementing in my _telegram
+bot_ projects, custom `ApplicationContext` for `context.bot_data, context.chat_data, context.user_data` typing,
 decorators/wrappers for handlers to cut down on a bit of boilerplate and implement common behaviours. This will take the
 mind off technicalities and instead help put your focus where it belongs, on the project.
 
 ### Run the Bot
 
-1. Make sure [poetry](https://python-poetry.org) is installed on your system.
-2. Run: `poetry shell`
-2. Run: `poetry install`
-3. Run: `./entrypoint.sh`
+- Make sure [poetry](https://python-poetry.org) is installed on your system.
+- Run: `poetry install`
 
-Make sure the following environment variables are set:
+The bot can be run in either `production` or `dev` mode. The difference being that the `dev` mode loads your environment variables
+from the `.env` file in the project and does a complete teardown + buildup of your database to give you a fresh debugging environment every time.
 
-- `BOT_TOKEN` you can get one from ***[Botfather](https://t.me/botfather)***
+#### Dev mode
+
+- Run: `poetry run python -m src.main --dev` or execute the `main` function in your debugger which will default to `dev` mode. (make sure the environment is activated by running `poetry shell` first)
+
+#### Production mode
+
+Production mode runs alembic migrations against your database before starting the bot, make sure the following environment variables are set:
+
+- `BOT_TOKEN` you can get one from **_[Botfather](https://t.me/botfather)_**
+- `DB_PATH` the path to your database, relative from where the bot is executing. (I recommend choosing `/data/yourdb.sqlite3`, as a `/data` directory is automatically created in the Docker container and can be mounted to a persistent volume)
+
+Finaly:
+
+- Execute `./entrypoint.sh`
+
+### DB Migrations
+
+Now that the template is running on SQL, every time your schema changes you will need to run new migrations on your production database to keep up to date. `env.py` is already set up to read `DB_PATH` env variable or default to the `db.sqlite3` file.
+
+Define your database schema inside of `db/tables.py`, then to autogenerate the migration run: `alembic revision --autogenerate -m "<description>"`, the migrations
+are then applied whenever the application starts through `entrypoint.sh`.
+
+#### Example
+
+Lets define a `User` table inside of `tables.py`:
+
+```python
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(unique=True, nullable=False)
+    is_bot: Mapped[bool] = mapped_column(nullable=False)
+    telegram_username: Mapped[str] = mapped_column(nullable=True)
+    """
+    Can be hidden due to privacy settings
+    """
+```
+
+Now lets run `alembic revision --autogenerate -m "user table"`, a wild `247a9e59a9a8_user_table.py` just appeared!!
+
+```python
+"""
+user table
+
+Revision ID: 247a9e59a9a8
+Revises:
+Create Date: 2023-11-26 10:03:21.771222
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = '247a9e59a9a8'
+down_revision: Union[str, None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('telegram_id', sa.Integer(), nullable=False),
+    sa.Column('is_bot', sa.Boolean(), nullable=False),
+    sa.Column('telegram_username', sa.String(), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('telegram_id')
+    )
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('users')
+    # ### end Alembic commands ###
+```
+
+This file contains SQLAlchemy commands to update the schema in your database! You can also add your own custom commands if you feel like it because the ORM does not fullfill all your needs, here is an example how I added a trigger in one of my projects:
+
+- Run: `alembic revision -m "create trigger for product cleanup"`
+- Inside of the `upgrade` function in the generated file add your SQL:
+
+```python
+def upgrade() -> None:
+    op.execute(
+        """
+        DELETE FROM products
+        WHERE NOT EXISTS (
+            SELECT 1 FROM alerts
+            WHERE alerts.product_id = products.id
+        );
+        """
+    )
+    op.execute(
+        """
+    CREATE TRIGGER DeleteProductsWithNoAlerts
+    AFTER DELETE ON alerts
+    BEGIN
+      DELETE FROM products
+      WHERE id = OLD.product_id
+        AND NOT EXISTS (
+          SELECT 1 FROM alerts
+          WHERE alerts.product_id = OLD.product_id
+        );
+    END;
+    """
+    )
+```
+
+- Inside of the `downgrade` function add the code necessary to get back to the previous schema
+
+```python
+def downgrade() -> None:
+    op.execute("""DROP TRIGGER IF EXISTS DeleteProductsWithNoAlerts;""")
+```
+
+The Specific SQL shown in the example is out of scope of this template, but this should showcase how you can tweak the database to your liking!
 
 ### Devops and Dependency management
 
 This project comes with a barebone CI pipeline.
-1. It tests your code using pytest, the same as it would locally with `python -m pytest`
+
+1. It tests your code using pytest, the same as it would locally with `poetry run python -m pytest`
 2. It builds the Docker image
 3. It pushes the Docker image to a repository, just open up `ci.yml` and fill out the secrets in your own repository
 
@@ -49,13 +174,10 @@ The app gets its configuration from environment variables that are defined in th
 extending `pydantic.BaseSettings` in `settings.py`
 
 ```python
-from pydantic import BaseSettings
-
+from pydantic_settings import BaseSettings
 
 class DBSettings(BaseSettings):
-    MONGODB_CONNECTION_URL: str
-    MONGODB_DB: str
-
+    DB_PATH: str = "template_app.db"
 
 class TelegramSettings(BaseSettings):
     BOT_TOKEN: str
@@ -69,119 +191,9 @@ settings = Settings()
 
 ```
 
-### How to persist entities
-
-For the persistence layer of the project I created two main template classes to extend, `MongoEntity` and `BaseDao`,
-both live in `db.core`.
-
-```python
-Entity = TypeVar("Entity", bound=MongoEntity)
-
-class BaseDAO(Generic[Entity]):
-    __slots__ = ["col", "factory"]
-    __collection__: ClassVar[str]
-
-    col: AsyncMongoCollection
-    factory: type[Entity]
-
-
-    @abstractmethod
-    async def _create_indexes(self):
-        pass
-
-    @staticmethod
-    async def create_all_indexes(db: AsyncMongoDatabase):
-        for dao in [DAOCls(db) for DAOCls in BaseDAO.__subclasses__()]:
-            await dao._create_indexes()
-
-    def __init__(self, db: AsyncMongoDatabase):
-        assert self.factory
-        assert self.__collection__
-        self.col = db.get_collection(self.__collection__)
-
-    async def list(self, **filters) -> AsyncIterator[Entity]:
-        async for entity in self.col.find(filter=filters):
-            yield self.factory(**entity)
-
-    async def insert(self, entity: Entity) -> InsertOneResult:
-        return await self.col.insert_one(jsonable_encoder(entity))
-
-    async def update(self, entity: Entity) -> UpdateResult:
-        return await self.col.update_one({"_id": entity.id}, {"$set": jsonable_encoder(entity)})
-
-    async def find_by_id(self, id: str) -> Optional[Entity]:
-        result = await self.col.find_one({"_id": id})
-        if result:
-            return self.factory(**result)
-
-    async def exists(self, **filters) -> bool:
-        return await self.col.count_documents(filter=filters) != 0
-
-```
-
-Since `Generic[Entity]` is just a type helper, to actually build the objects from the dictionaries returned by the
-MongoDB queries you need to set the `factory` field to the actual class, and to get the collection from which you want
-to query the entities themselves you need to set the `__collection__` field of your class, the `__init__` method will
-make sure of that, failing the assertion otherwise. As I am not too familiar with python internals and metaprogramming I
-would love and appreciate any advice to smooth out this persistence layer.
-
-Update: I created a way to initialize all your database indexes for your collections at runtime, if you override the abstract private method `_create_indexes` in your subclasses, the `BaseDAO.create_all_indexes()` that is called on the startup method will create them.
-
-Sample implementation:
-
-```python
-class User(MongoEntity):
-    username: str
-
-
-class UserDAO(BaseDAO[User]):
-    __collection__ = "users"
-    factory = User
-```
-
-With these few lines of code you now have access to the default CRUD implementations of the BaseDAO class, with type
-hints!
-To add functionality look up the
-*[Motor documentation](https://motor.readthedocs.io/en/stable/api-asyncio/asyncio_motor_collection.html)*
-
-```python
-class PyObjectId(ObjectId):
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid objectid")
-        return ObjectId(v)
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
-
-
-class MongoEntity(BaseModel):
-    mongo_id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-
-    @property
-    def id(self) -> str:
-        return str(self.mongo_id)
-
-    class Config:
-        allow_population_by_field_name = True
-        json_encoders = {
-            ObjectId: str,
-        }
-```
-
-The data is modeled using pydantic. Any object that will be persisted to the database has to extend `MongoEntity`,
-the `@property` implementation of `id` is needed because queries don't automatically convert between `ObjectId` and
-string. [To learn more about the power of pydantic check out their docs as well!](https://docs.pydantic.dev/)
-
 ### Application State
 
-When you use python-telegram-bot you have access to 3 shared `dict` objects on your `context`:
+When you use python-telegram-bot you have access to 3 shared objects on your `context`:
 
 1. `context.user_data`, this object is shared between all handlers that interact with updates from the same user
 2. `context.chat_data`, shared between all updates for the same chat
@@ -189,60 +201,31 @@ When you use python-telegram-bot you have access to 3 shared `dict` objects on y
 
 Working with raw dicts is error prone, that's why python-telegram-bot let's you define your own `CallbackContext` to
 replace the usual `ContextTypes.DEFAULT`.
+The boilerplate needed for your `ContextTypes` is already set up inside of `src/bot/common/context.py`
 
 ```python
 class BotData:
-    user_cache: Dict[int, User] = {}
     pass
-
 
 class ChatData:
     pass
 
-
 class UserData:
     pass
 
-
 class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
     # Define custom @property and utility methods here that interact with your context
-    def get_cached_user(self, telegram_id: int) -> Optional[User]:
-        if len(self.bot_data.users) >= settings.CACHE_LIMIT:
-            keys = list(self.bot_data.users.keys())
-            keys = keys[0: min(int(settings.CACHE_LIMIT / 100), len(keys) - 1)]
-            for key in keys:
-                del self.bot_data.users[key]
-        return self.bot_data.users.get(telegram_id, None)
-
-    def cache_user(self, user: User):
-        self.bot_data.users[user.telegram_id] = user
+    pass
 ```
 
 You will find these classes in the `bot.common` module in `context.py`, you can edit the three classes above to define
-the state in your application depending on the context, the `ApplicationContext` class itself is used in the type
-signature for the context of your handlers and you can also define useful `@property` and other utility methods on it as
-well.
-
-A quick note on the `user_cache` in the `BotData` class:
-
-Why am I not caching the user object in the `UserData` class, such that interactions that involve the same user can
-access it for examplte with `context.user_data.user`?\
-You might need to invalidate/update certain `User` objects from a context outside of your user context, for example an
-admin banning a user or a background job updating certain fields, since `context.bot_data` is shared between all context
-instances and accessible by background jobs I decided to cache users here.
-
-Why cache the `User` at all?\
-If you have a flow that expects a lot of sequential user interactions that access the entity you might soon run into
-trouble querying the database every time you get a telegram update.
-
-Note: I still need to add a background job that periodically invalidates cached `User` objects.
+the state in your application depending on the context, the `ApplicationContext` class itself is used in the type signature for the context of your handlers and you can also define useful `@property` and other utility methods on it as well.
 
 #### How are my Context classes initialized if I am only passing them as type-hints?
 
 To make the framework instantiate your custom objects instead of the usual dictionaries they are passed as
 a `ContextTypes` object to your `ApplicationBuilder`, the template takes care of this. The `Application` object itself
-is build inside of `bot.application`, that's also where you will need to register your handlers, either in
-the `on_startup` method or on the application object.
+is build inside of `bot.application`, that's also where you will need to register your handlers, either in the `on_startup` method or on the application object.
 
 ```python
 context_types = ContextTypes(
@@ -252,12 +235,14 @@ context_types = ContextTypes(
     user_data=UserData
 )
 
-application = ApplicationBuilder()
-.token(settings.BOT_TOKEN)
-.context_types(context_types)
-.arbitrary_callback_data(True)
-.post_init(on_startup)
-.build()
+application: Application = (
+    ApplicationBuilder()
+    .token(settings.BOT_TOKEN)
+    .context_types(context_types)
+    .arbitrary_callback_data(True)
+    .post_init(on_startup)
+    .build()
+)
 ```
 
 ### Conversation State
@@ -284,7 +269,7 @@ class UserData:
 
 The `UserData` class comes pre-defined with a dictionary to hold conversation state, the type of the object
 itself is used as a key to identify it, this necessitates that for a conversation state type `T` there is at most 1
-active conversation ***per user*** that uses this type for its state.
+active conversation **_per user_** that uses this type for its state.
 
 To avoid leaking memory this object needs to be cleared from the dictionary when you are done with it, to take care of
 initialization and cleanup I have created three decorators:
@@ -309,7 +294,7 @@ and return `Conversation handler.END` when it finishes.
 For example, let's define an entry point handler and an exit method for a conversation flow where a user needs to follow
 multiple steps to fill up a `OrderRequest` object. (I will ignore the implementation details for
 a `ConversationHandler`, if you want to see a good example of how this works
-***[click here](https://docs.python-telegram-bot.org/en/stable/examples.conversationbot.html)***)
+**_[click here](https://docs.python-telegram-bot.org/en/stable/examples.conversationbot.html)_**)
 
 ```python
 @init_stateful_conversation(OrderRequest)
@@ -373,7 +358,7 @@ def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any
     return wrapper
 ```
 
-This decorator ensures your handler ***tries*** to delete the message after finishing the
+This decorator ensures your handler **_tries_** to delete the message after finishing the
 logic, `update.effective_message.delete()` from time to time throws exceptions even when it shouldn't, as
 does `bot.delete_message`, this decorator is a easy and safe way to abstract this away and make sure you tried your best
 to delete that message.
@@ -406,11 +391,11 @@ def exit_conversation_on_exception(
 ```
 
 This decorator catches any unchecked exceptions in your handlers inside of your conversation flow that you annotate with
-it and sends the poor user that had to interact with your ***(my)*** mess a message.
+it and sends the poor user that had to interact with your **_(my)_** mess a message.
 
 ### CallbackQuery data injection
 
-Arbitrary callback data is an awesome feature of *python-telegram-bot*, it increases security of your application (
+Arbitrary callback data is an awesome feature of _python-telegram-bot_, it increases security of your application (
 callback-queries are generated on the client-side and can contain malicious payloads) and makes your development
 workflow easier.
 
@@ -559,12 +544,12 @@ I would recommend you keep your code loosely coupled and keep cohesion high, sep
 
 I added a folder `orders` that could represent a way to add a feature to interact with orders:
 
-+ `persistence.py` can contain your class `OrderDAO` and `OrderEntity` to model your database persistence
-+ `models.py` can contain other object types you need, like classes for custom callback queries or conversation state
-+ `handlers.py` is where you define the handlers needed to interact with this module through the telegram api, export a
+- `persistence.py` can contain your class `OrderDAO` and `OrderEntity` to model your database persistence
+- `models.py` can contain other object types you need, like classes for custom callback queries or conversation state
+- `handlers.py` is where you define the handlers needed to interact with this module through the telegram api, export a
   list of handlers that you import in `application.py` and then add to the `Application` object
   through `add_handlers()`. This list of handlers has to contain all the handlers of the module
-+ `conversations` contains a file for every `ConversationHandler` the module defines, since it takes a lot of code to
+- `conversations` contains a file for every `ConversationHandler` the module defines, since it takes a lot of code to
   define a single conversation, with it's states, state-management, fallbacks etc. a single file for every conversation
   flow seems okay.
 
