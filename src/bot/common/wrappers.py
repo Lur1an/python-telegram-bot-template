@@ -21,9 +21,6 @@ from src.bot.common.context import ApplicationContext
 
 import logging
 
-from src.db.config import db
-from src.user.persistence import UserDAO
-
 log = logging.getLogger(__name__)
 
 
@@ -111,30 +108,3 @@ def arbitrary_message_handler(
 ):
     return MessageHandler(filters=filters.ALL, callback=f)
 
-
-def load_user(
-    _f=None,
-    *,
-    error_message: Optional[str] = None,
-):
-    def inner_decorator(f):
-        @wraps(f)
-        async def wrapped(update: Update, context: ApplicationContext):
-            user = context.get_cached_user(update.effective_user.id)
-            if user is None:
-                user = await UserDAO(db).find_by_telegram_id(update.effective_user.id)
-            if user is None:
-                if error_message is not None:
-                    await context.bot.send_message(
-                        chat_id=update.effective_chat.id, text=error_message
-                    )
-            else:
-                context.cache_user(user)
-                return await f(update, context, user)
-
-        return wrapped
-
-    if _f is None:
-        return inner_decorator
-    else:
-        return inner_decorator(_f)
