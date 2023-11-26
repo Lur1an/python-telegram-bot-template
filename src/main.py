@@ -2,8 +2,6 @@ import logging
 import sys
 import asyncio
 
-from src.db.config import AsyncSessionLocal, engine
-from src.db.tables import Base
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -11,6 +9,8 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 async def create_db():
+    from src.db.config import engine
+    from src.db.tables import Base
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
