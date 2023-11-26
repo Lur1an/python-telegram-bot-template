@@ -11,7 +11,6 @@ WORKDIR /app
 
 COPY pyproject.toml poetry.lock ./
 RUN touch README.md
-RUN ls
 
 RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
@@ -24,5 +23,10 @@ ENV VIRTUAL_ENV=/app/.venv \
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 COPY src ./src
+COPY entrypoint.sh ./
+COPY alembic.ini ./
+COPY migrations ./migrations
+RUN mkdir /data # Directory to mount volume for database
 
-ENTRYPOINT ["python", "-m", "src.main"]
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]
