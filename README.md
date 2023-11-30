@@ -46,7 +46,7 @@ Production mode runs alembic migrations against your database before starting th
 - `BOT_TOKEN` you can get one from **_[Botfather](https://t.me/botfather)_**
 - `DB_PATH` the path to your database, relative from where the bot is executing. (I recommend choosing `/data/yourdb.sqlite3`, as a `/data` directory is automatically created in the Docker container and can be mounted to a persistent volume)
 
-Finaly:
+Finally:
 
 - Execute `./entrypoint.sh`
 
