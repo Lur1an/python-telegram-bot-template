@@ -34,11 +34,8 @@ ConversationState = TypeVar("ConversationState")
 class UserData:
     _conversation_state: Dict[type, Any] = {}
 
-    def get_conversation_state(self, cls: Type[ConversationState]) -> ConversationState:
+    def get_or_init_conversation_state(self, cls: Type[ConversationState]) -> ConversationState:
         return self._conversation_state.setdefault(cls, cls())
-
-    def initialize_conversation_state(self, cls: Type):
-        self._conversation_state[cls] = cls()
 
     def clean_up_conversation_state(self, conversation_type: Type):
         if conversation_type in self._conversation_state:

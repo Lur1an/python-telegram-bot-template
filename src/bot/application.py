@@ -1,42 +1,43 @@
+from fast_depends import Depends, inject
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio.session import AsyncSession, async_sessionmaker
+from sqlalchemy.sql.selectable import Exists
+from telegram import Update
 from telegram.ext import ApplicationBuilder, Application
-from src.bot.common.context import context_types
+from src.bot.common.context import ApplicationContext, context_types
+from src.bot.common.wrappers import command_handler, restricted_action
+from src.bot.extractors import tx
 from src.db.config import create_engine
 from src.db.tables import User
 from src.settings import Settings
 from ptb_ext.logging_ext import ErrorForwarder
 import logging
 
-from telegram import Update
-from src.bot.common.context import ApplicationContext
-from src.bot.common.wrappers import command_handler
-from fast_depends import inject, Depends
 
 log = logging.getLogger(__name__)
 
 settings = Settings()  # type: ignore
 
 
-def ConversationState(t: type):
-    def extract_state(update: Update, context: ApplicationContext):
-        return context.user_data.get_conversation_state(t)
-    return Depends(extract_state)
-
-async def tx(context: ApplicationContext):
-    async with context.session() as session:
-        try:
-            yield session
-        except Exception as e:
-            log.error("Unhandled exception in SQL session", e)
-            await session.rollback()
+@command_handler("admin")
+async def add_admin(update: Update, context: ApplicationContext):
+    pass
 
 
-@command_handler("stuff")
+@command_handler("start")
 @inject
-async def random_handler(
-    update: Update, context: ApplicationContext, db: AsyncSession = Depends(tx), convo = ConversationState(User)
+async def start(
+    update: Update, context: ApplicationContext, db: AsyncSession = Depends(tx)
 ):
-    log.info("Handling random command")
+    tg_user = update.effective_user
+    if await db.scalar(select(User).where(User.telegram_id == tg_user.id)):
+        return
+    user = User(
+        telegram_id=tg_user.id,
+        is_bot=tg_user.is_bot,
+        telegram_username=tg_user.username,
+    )
+    db.add(user)
 
 
 async def on_startup(app: Application):
@@ -51,8 +52,6 @@ async def on_startup(app: Application):
 
     app.bot_data._db = AsyncSessionLocal
     app.bot_data._settings = settings
-
-    app.add_handler(random_handler)
 
     # Set up log forwarding
     handlers = []
@@ -80,3 +79,5 @@ application: Application = (
     .post_init(on_startup)
     .build()
 )
+
+application.add_handler(start)

@@ -70,7 +70,6 @@ def arbitrary_callback_query_handler(
     clear_callback_data: bool = False,
 ):
     if inject:
-
         def injecting_inner_decorator(f):
             decorator = inject_callback_query(
                 answer_query_after=answer_query_after,
