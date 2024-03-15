@@ -17,31 +17,10 @@ from telegram.ext.filters import BaseFilter
 from src.bot.common.context import ApplicationContext
 from src.db.tables import User
 
-import logging
+import structlog
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger()
 
-
-def restricted_action(
-    is_allowed: Callable[[Update, ApplicationContext, User], Awaitable[Any]],
-    *,
-    unauthorized_message: str | None = None,
-):
-    def inner_decorator(
-        f: Callable[[Update, ApplicationContext, User], Awaitable[Any]]
-    ):
-        @wraps(f)
-        async def wrapped(update: Update, context: ApplicationContext, user: User):
-            if await is_allowed(update, context, user):
-                return await f(update, context, user)
-            elif unauthorized_message:
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id, text=unauthorized_message  # type: ignore
-                )
-
-        return wrapped
-
-    return inner_decorator
 
 def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
     @wraps(f)
@@ -56,7 +35,8 @@ def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any
 
     return wrapper
 
-def command_handler(command: str, *, filters: BaseFilter = filters.ALL):
+
+def command_handler(command: str | list[str], *, filters: BaseFilter = filters.ALL):
     def inner_decorator(
         f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, Any]]
     ) -> CommandHandler:
@@ -78,7 +58,5 @@ def message_handler(filters: BaseFilter):
     return inner_decorator
 
 
-def arbitrary_message_handler(
-    f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, Any]]
-):
+def any_message(f: Callable[[Update, ApplicationContext], Coroutine[Any, Any, Any]]):
     return MessageHandler(filters=filters.ALL, callback=f)

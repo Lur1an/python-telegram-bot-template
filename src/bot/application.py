@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, Application
 from src.bot.common.context import ApplicationContext, context_types
 from src.bot.common.wrappers import command_handler, restricted_action
-from src.bot.extractors import tx, user
+from src.bot.extractors import CurrentUser, tx, load_user
 from src.db.config import create_engine
 from src.db.tables import User, UserRole
 from src.settings import Settings
@@ -28,19 +28,22 @@ async def set_role(
     update: Update,
     context: ApplicationContext,
     session: AsyncSession = Depends(tx),
-    user: User = Depends(user),
+    user: User = Depends(load_user),
 ):
     if not user.role == UserRole.ADMIN:
+        log.warn("Unauthorized user tried admin command", user=user, command="set_role")
         await update.effective_message.reply_text("Unauthorized")
         return
     if context.args is None or len(context.args) != 2:
         await update.effective_message.reply_text("Usage: /admin <user_id> <role>")
         return
-    user_id, role = context.args
-    user_id = int(user_id)
+    log.info(context.args)
+    target_user_id, role = context.args
+    target_user_id = int(target_user_id)
+    log.info("Promoting user", target_user_id=target_user_id, role=role)
     role = UserRole(role.lower())
     if target_user := await session.scalar(
-        select(User).where(User.telegram_id == user_id)
+        select(User).where(User.telegram_id == target_user_id)
     ):
         target_user.role = role
     else:
@@ -62,6 +65,7 @@ async def start(
         telegram_username=tg_user.username,
     )
     if tg_user.id == context.settings.FIRST_ADMIN:
+        log.warn("First admin detected", user=update.effective_user)
         user.role = UserRole.ADMIN
     session.add(user)
 
@@ -97,7 +101,9 @@ async def on_startup(app: Application):
 
     if settings.LOGGING_CHANNEL:
         telegram_logs.append(settings.LOGGING_CHANNEL)
-    error_forwarder = ErrorForwarder(app.bot, telegram_logs)
+    error_forwarder = ErrorForwarder(
+        app.bot, telegram_logs, log_levels=["ERROR", "WARNING"]
+    )
     error_forwarder.setFormatter(telegram_formatter)
     logging.getLogger().addHandler(error_forwarder)
 
@@ -114,4 +120,4 @@ application: Application = (
     .build()
 )
 
-application.add_handler(start)
+application.add_handlers([start, set_role])

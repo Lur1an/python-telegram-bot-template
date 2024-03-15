@@ -4,18 +4,15 @@ from typing import (
     Optional,
     Pattern,
 )
-
 from pydantic import BaseModel
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CallbackQueryHandler,
 )
-
 from src.bot.common.context import ApplicationContext
+import structlog
 
-import logging
-
-log = logging.getLogger(__name__)
+log = structlog.get_logger()
 
 
 def regex_callback_query_handler(
@@ -41,7 +38,7 @@ def answer_inline_query_after(f):
         try:
             await update.callback_query.answer()  # type: ignore
         except Exception as e:
-            log.error(f"Failed answering callback_query: {e}")
+            log.error(f"Failed answering callback_query", error=e)
         finally:
             return result
 
@@ -55,7 +52,9 @@ def drop_callback_data_after(f):
         try:
             context.drop_callback_data(update.callback_query)  # type: ignore
         except KeyError as e:
-            log.error(f"Failed dropping callback_query_data, couldn't find Key: {e}")
+            log.error(
+                f"Failed dropping callback_query_data, couldn't find Key", error=e
+            )
         finally:
             return result
 
@@ -65,24 +64,10 @@ def drop_callback_data_after(f):
 def arbitrary_callback_query_handler(
     query_data_type: Type,
     *,
-    inject: bool = True,
     answer_query_after: bool = True,
     clear_callback_data: bool = False,
 ):
-    if inject:
-        def injecting_inner_decorator(f):
-            decorator = inject_callback_query(
-                answer_query_after=answer_query_after,
-                clear_callback_data=clear_callback_data,
-            )
-            wrapped = decorator(f)  # type: ignore
-            handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
-            return handler
-
-        return injecting_inner_decorator
-    else:
-
-        def non_injecting_inner_decorator(f) -> CallbackQueryHandler:
+        def inner_decorator(f) -> CallbackQueryHandler:
             if answer_query_after:
                 f = answer_inline_query_after(f)
             if clear_callback_data:
@@ -90,33 +75,7 @@ def arbitrary_callback_query_handler(
             handler = CallbackQueryHandler(pattern=query_data_type, callback=f)
             return handler
 
-        return non_injecting_inner_decorator
-
-
-def inject_callback_query(
-    _f=None,
-    *,
-    answer_query_after: bool = True,
-    clear_callback_data: bool = False,
-):
-    def inner_decorator(f):
-        @wraps(f)
-        async def wrapped(update: Update, context: ApplicationContext):
-            result = await f(update, context, update.callback_query.data)  # type: ignore
-            return result
-
-        if answer_query_after:
-            wrapped = answer_inline_query_after(wrapped)
-        if clear_callback_data:
-            wrapped = drop_callback_data_after(wrapped)
-
-        return wrapped
-
-    if _f is None:
         return inner_decorator
-    else:
-        return inner_decorator(_f)
-
 
 class CallbackButton(BaseModel):
     """
@@ -132,7 +91,6 @@ class CallbackButton(BaseModel):
     This will create a button with the text "DELETE" and the callback_data
     will be handled by a `CallbackQueryHandler` that has as pattern the type
     `DELETE_QUESTION`.
-
     """
 
     def to_short_button(self, *, emoji: Optional[str] = None) -> InlineKeyboardButton:
