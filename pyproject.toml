@@ -17,6 +17,7 @@ pydantic-settings = "^2.1.0"
 greenlet = "^3.0.1"
 fast-depends = "^2.4.2"
 ptb-ext = "^0.1.1"
+structlog = "^24.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"

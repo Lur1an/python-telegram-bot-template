@@ -5,6 +5,7 @@ class DBSettings(BaseSettings):
 
 class TelegramSettings(BaseSettings):
     BOT_TOKEN: str
+    FIRST_ADMIN: int
     LOGGING_CHANNEL: int | None = None
 
 class Settings(TelegramSettings, DBSettings):
