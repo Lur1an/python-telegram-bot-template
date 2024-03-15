@@ -1,5 +1,6 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import timedelta
 from typing import Any
 from sqlalchemy import Update
 from telegram.ext import ConversationHandler
@@ -13,6 +14,7 @@ class ConversationBuilder:
     allow_reentry: bool = False
     name: str | None = None
     persistent: bool = False
+    conversation_timeout: float | timedelta | None = None
     map_to_parent: dict[object, object] | None = None
     states: dict = field(default_factory=dict)
     fallbacks: list = field(default_factory=list)
@@ -30,6 +32,10 @@ class ConversationBuilder:
         self.fallbacks.append(handler)
 
     def build(self):
+        if not self.states:
+            raise ValueError("Satet must be defined for ConversationHandler")
+        if not self.entry_points:
+            raise ValueError("Entry points must be defined for ConversationHandler")
         return ConversationHandler(
             entry_points=self.entry_points,
             states=self.states,
@@ -37,6 +43,7 @@ class ConversationBuilder:
             per_user=self.per_user,
             per_chat=self.per_chat,
             per_message=self.per_message,
+            conversation_timeout=self.conversation_timeout,
             allow_reentry=self.allow_reentry,
             name=self.name,
             persistent=self.persistent,
