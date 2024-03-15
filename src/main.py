@@ -30,6 +30,7 @@ def main(prod: bool = False):
         loop.run_until_complete(create_db())
 
     from src.bot.application import application
+
     application.run_polling()
 
 
@@ -47,7 +48,8 @@ if __name__ == "__main__":
         timestamper,
     ]
 
-    logging.config.dictConfig( {
+    logging.config.dictConfig(
+        {
             "version": 1,
             "disable_existing_loggers": False,
             "formatters": {

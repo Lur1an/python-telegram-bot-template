@@ -2,7 +2,6 @@
 shell.nix
 .envrc
  Byte-compiled / optimized / DLL files
- test.log
 __pycache__/
 *.py[cod]
 *$py.class
