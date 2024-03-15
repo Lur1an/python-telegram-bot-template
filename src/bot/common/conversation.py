@@ -1,9 +1,9 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Any
-from sqlalchemy import Update
-from telegram.ext import ConversationHandler
+from typing import Any, Dict, Generic, List, TypeVar
+from sqlalchemy import Enum, Update
+from telegram.ext import BaseHandler, ConversationHandler
 from src.bot.common.context import ApplicationContext
 
 @dataclass(slots=True)
@@ -20,15 +20,15 @@ class ConversationBuilder:
     fallbacks: list = field(default_factory=list)
     entry_points: list = field(default_factory=list)
 
-    def add_state(self, state: Any):
-        def decorator(handler: Callable[[Update, ApplicationContext], Awaitable[Any]]):
-            self.states[state] = handler
+    def state(self, state):
+        def decorator(handler: BaseHandler[Update, Any]):
+            self.states.setdefault(state, list()).append(handler)
         return decorator
 
-    def add_entry_point(self, handler: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+    def entry_point(self, handler: BaseHandler[Update, Any]):
         self.entry_points.append(handler)
 
-    def add_fallback(self, handler: Callable[[Update, ApplicationContext], Awaitable[Any]]):
+    def fallback(self, handler: BaseHandler[Update, Any]):
         self.fallbacks.append(handler)
 
     def build(self):
