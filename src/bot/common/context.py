@@ -5,12 +5,15 @@ from typing import (
     Any,
 )
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from telegram.ext import (
     CallbackContext,
     ExtBot,
     ContextTypes,
 )
 import logging
+
+from src.settings import Settings
 log = logging.getLogger(__name__)
 
 
@@ -18,7 +21,9 @@ log = logging.getLogger(__name__)
 
 
 class BotData:
-    pass
+    _db: async_sessionmaker[AsyncSession]
+    _settings: Settings
+    
 
 class ChatData:
     pass
@@ -30,7 +35,7 @@ class UserData:
     _conversation_state: Dict[type, Any] = {}
 
     def get_conversation_state(self, cls: Type[ConversationState]) -> ConversationState:
-        return self._conversation_state[cls]
+        return self._conversation_state.setdefault(cls, cls())
 
     def initialize_conversation_state(self, cls: Type):
         self._conversation_state[cls] = cls()
@@ -42,7 +47,13 @@ class UserData:
 
 class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
     # Define custom @property and utility methods here that interact with your context
-    pass
+    @property
+    def session(self) -> async_sessionmaker[AsyncSession]:
+        return self.bot_data._db
+
+    @property
+    def settings(self) -> Settings:
+        return self.bot_data._settings
 
 
 context_types = ContextTypes(

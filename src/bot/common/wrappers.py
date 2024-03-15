@@ -5,7 +5,6 @@ from typing import (
     TypeVar,
     Awaitable,
     Coroutine,
-    Optional,
 )
 
 from telegram import Update

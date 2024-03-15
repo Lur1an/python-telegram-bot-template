@@ -15,6 +15,8 @@ alembic = "^1.12.1"
 pydantic = "^2.5.2"
 pydantic-settings = "^2.1.0"
 greenlet = "^3.0.1"
+fast-depends = "^2.4.2"
+ptb-ext = "^0.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"
@@ -22,7 +24,7 @@ pytest-asyncio = "^0.20.3"
 pytest-env = "^0.8.1"
 black = "^23.7.0"
 python-dotenv = "^1.0.0"
-debugpy = "^1.6.7"
+debugpy = "^1.8.1"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

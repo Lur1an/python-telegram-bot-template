@@ -5,9 +5,7 @@ class DBSettings(BaseSettings):
 
 class TelegramSettings(BaseSettings):
     BOT_TOKEN: str
+    LOGGING_CHANNEL: int | None = None
 
 class Settings(TelegramSettings, DBSettings):
     pass
-
-
-settings = Settings() # type: ignore

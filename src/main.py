@@ -1,19 +1,22 @@
+import asyncio
 import logging
 import sys
-import asyncio
 
+from src.settings import DBSettings
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
 log = logging.getLogger(__name__)
 
+
 async def create_db():
-    from src.db.config import engine
+    from src.db.config import create_engine
+
+    engine = create_engine(DBSettings().DB_PATH)
     from src.db.tables import Base
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+
 
 def main(prod: bool = False):
     loop = asyncio.new_event_loop()
@@ -22,9 +25,11 @@ def main(prod: bool = False):
 
         log.info("Loading .env file")
         dotenv.load_dotenv()
+        # DB creation not needed since dev db can be created with alembic
         loop.run_until_complete(create_db())
 
     from src.bot.application import application
+
     application.run_polling()
 
 
