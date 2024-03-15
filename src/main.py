@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 "file": {
                     "level": "INFO",
                     "class": "logging.handlers.WatchedFileHandler",
-                    "filename": "test.log",
+                    "filename": "app.log",
                     "formatter": "plain",
                 },
             },
