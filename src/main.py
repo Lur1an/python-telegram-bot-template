@@ -77,7 +77,7 @@ if __name__ == "__main__":
                     "formatter": "colored",
                 },
                 "file": {
-                    "level": "INFO",
+                    "level": "DEBUG",
                     "class": "logging.handlers.WatchedFileHandler",
                     "filename": "app.log",
                     "formatter": "plain",
