@@ -31,7 +31,7 @@ def ConversationState(t: type, clear: bool = False):
 
     return Depends(extract_state)
 
-async def user(update: Update, context: ApplicationContext, session: AsyncSession) -> User:
+async def user(update: Update, session: AsyncSession) -> User:
     """
     Extractor for the current user. Requires a `session` dependency to be present in function signature.
     """

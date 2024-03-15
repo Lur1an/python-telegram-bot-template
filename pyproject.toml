@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Base bot for telegram projects"
 authors = ["lurian <lurian-code@protonmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"

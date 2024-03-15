@@ -1,0 +1,106 @@
+2024-03-15 20:29:19 [info     ] Running in development mode
+2024-03-15 20:29:19 [debug    ] Using selector: EpollSelector
+2024-03-15 20:29:19 [info     ] Loading .env file
+2024-03-15 20:29:19 [info     ] Creating database              db_path=template_app.db
+2024-03-15 20:29:19 [debug    ] executing <function connect.<locals>.connector at 0x7f8cb521c680>
+2024-03-15 20:29:19 [debug    ] operation <function connect.<locals>.connector at 0x7f8cb521c680> completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method create_function of sqlite3.Connection object at 0x7f8cb523d120>, 'regexp', 2, <function SQLiteDialect_pysqlite.on_connect.<locals>.regexp at 0x7f8cb51ff740>, deterministic=True)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method create_function of sqlite3.Connection object at 0x7f8cb523d120>, 'regexp', 2, <function SQLiteDialect_pysqlite.on_connect.<locals>.regexp at 0x7f8cb51ff740>, deterministic=True) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method create_function of sqlite3.Connection object at 0x7f8cb523d120>, 'floor', 1, <built-in function floor>, deterministic=True)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method create_function of sqlite3.Connection object at 0x7f8cb523d120>, 'floor', 1, <built-in function floor>, deterministic=True) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229d40>, 'PRAGMA read_uncommitted', [])
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229d40>, 'PRAGMA read_uncommitted', []) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x7f8cb5229d40>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x7f8cb5229d40>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229d40>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229d40>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method rollback of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method rollback of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, 'PRAGMA main.table_info("users")', ())
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, 'PRAGMA main.table_info("users")', ()) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, '\nDROP TABLE users', ())
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, '\nDROP TABLE users', ()) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, 'PRAGMA main.table_info("users")', ())
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, 'PRAGMA main.table_info("users")', ()) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, 'PRAGMA temp.table_info("users")', ())
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, 'PRAGMA temp.table_info("users")', ()) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, '\nCREATE TABLE users (\n\tid INTEGER NOT NULL, \n\ttelegram_id INTEGER NOT NULL, \n\tis_bot BOOLEAN NOT NULL, \n\ttelegram_username VARCHAR, \n\trole VARCHAR(5) NOT NULL, \n\tadmin BOOLEAN NOT NULL, \n\tPRIMARY KEY (id)\n)\n\n', ())
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, '\nCREATE TABLE users (\n\tid INTEGER NOT NULL, \n\ttelegram_id INTEGER NOT NULL, \n\tis_bot BOOLEAN NOT NULL, \n\ttelegram_username VARCHAR, \n\trole VARCHAR(5) NOT NULL, \n\tadmin BOOLEAN NOT NULL, \n\tPRIMARY KEY (id)\n)\n\n', ()) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method cursor of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, 'CREATE UNIQUE INDEX ix_users_telegram_id ON users (telegram_id)', ())
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method execute of sqlite3.Cursor object at 0x7f8cb5229ec0>, 'CREATE UNIQUE INDEX ix_users_telegram_id ON users (telegram_id)', ()) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method close of sqlite3.Cursor object at 0x7f8cb5229ec0>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method commit of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method commit of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method rollback of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method rollback of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:19 [debug    ] executing functools.partial(<built-in method close of sqlite3.Connection object at 0x7f8cb523d120>)
+2024-03-15 20:29:19 [debug    ] operation functools.partial(<built-in method close of sqlite3.Connection object at 0x7f8cb523d120>) completed
+2024-03-15 20:29:20 [debug    ] Using selector: EpollSelector
+2024-03-15 20:29:20 [debug    ] Entering: get_me
+2024-03-15 20:29:20 [debug    ] connect_tcp.started host='api.telegram.org' port=443 local_address=None timeout=5.0 socket_options=None
+2024-03-15 20:29:25 [debug    ] connect_tcp.failed exception=ConnectTimeout(TimeoutError())
+2024-03-15 20:29:25 [debug    ] This Application is already shut down. Returning.
+2024-03-15 20:29:38 [info     ] Running in development mode
+2024-03-15 20:29:38 [info     ] Loading .env file
+2024-03-15 20:29:38 [info     ] Creating database              db_path=template_app.db
+2024-03-15 20:30:33 [info     ] Running in development mode
+2024-03-15 20:30:33 [info     ] Loading .env file
+2024-03-15 20:30:33 [info     ] Creating database              db_path=template_app.db
+2024-03-15 20:30:34 [error    ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:30:34 [info     ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:30:35 [info     ] Application started
+2024-03-15 20:31:09 [info     ] Running in development mode
+2024-03-15 20:31:09 [info     ] Loading .env file
+2024-03-15 20:31:09 [info     ] Creating database              db_path=template_app.db
+2024-03-15 20:31:11 [error    ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:31:11 [info     ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:31:11 [info     ] Application started
+2024-03-15 20:35:39 [info     ] Running in development mode
+2024-03-15 20:35:39 [info     ] Loading .env file
+2024-03-15 20:35:39 [info     ] Creating database              db_path=template_app.db
+2024-03-15 20:35:40 [error    ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:35:40 [info     ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:35:40 [info     ] Application started
+2024-03-15 20:36:19 [info     ] Running in development mode
+2024-03-15 20:36:19 [info     ] Loading .env file
+2024-03-15 20:36:19 [info     ] Creating database              db_path=template_app.db
+2024-03-15 20:36:21 [error    ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:36:21 [info     ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:36:21 [info     ] Application started
+2024-03-15 20:36:44 [info     ] Running in development mode
+2024-03-15 20:36:44 [info     ] Loading .env file
+2024-03-15 20:36:44 [info     ] Creating database              db_path=template_app.db
+2024-03-15 20:36:46 [error    ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:36:46 [info     ] Bot started                    deez={'nuts': 'your chin'}
+2024-03-15 20:36:46 [info     ] Application started

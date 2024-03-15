@@ -1,3 +1,4 @@
+import json
 from fast_depends import Depends, inject
 from pydantic_core.core_schema import arguments_schema
 from sqlalchemy import exists, select
@@ -13,9 +14,10 @@ from src.db.tables import User, UserRole
 from src.settings import Settings
 from ptb_ext.logging_ext import ErrorForwarder
 import logging
+import structlog
 
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger()
 
 settings = Settings()  # type: ignore
 
@@ -37,7 +39,9 @@ async def set_role(
     user_id, role = context.args
     user_id = int(user_id)
     role = UserRole(role.lower())
-    if target_user := await session.scalar(select(User).where(User.telegram_id == user_id)):
+    if target_user := await session.scalar(
+        select(User).where(User.telegram_id == user_id)
+    ):
         target_user.role = role
     else:
         await update.effective_message.reply_text("User not found")
@@ -75,22 +79,30 @@ async def on_startup(app: Application):
     app.bot_data._db = AsyncSessionLocal
     app.bot_data._settings = settings
 
-    # Set up log forwarding
-    handlers = []
-    handlers.append(logging.StreamHandler(None))
-    error_forwarding = []
-    if settings.LOGGING_CHANNEL:
-        error_forwarding.append(settings.LOGGING_CHANNEL)
-    handlers.append(ErrorForwarder(app.bot, error_forwarding))
-
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("apscheduler.scheduler").setLevel(logging.WARNING)
-
-    logging.basicConfig(
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        level=logging.INFO,
-        handlers=handlers,
+    # Setup log forwarder to telegram
+    # When sending to telegram just send the raw json logs in pretty format
+    telegram_formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=[
+            structlog.stdlib.add_log_level,
+        ],
+        # These run on ALL entries after the pre_chain is done.
+        processors=[
+            # Remove _record & _from_structlog.
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            structlog.processors.JSONRenderer(indent=2),
+        ],
     )
+    telegram_logs = []
+
+    if settings.LOGGING_CHANNEL:
+        telegram_logs.append(settings.LOGGING_CHANNEL)
+    error_forwarder = ErrorForwarder(app.bot, telegram_logs)
+    error_forwarder.setFormatter(telegram_formatter)
+    logging.getLogger().addHandler(error_forwarder)
+
+    log.error("Bot started", deez={"nuts": "your chin"})
+    log.info("Bot started", deez={"nuts": "your chin"})
 
 
 application: Application = (
