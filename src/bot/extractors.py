@@ -27,8 +27,8 @@ def ConversationState(t: type, clear: bool = False):
             if clear:
                 context.user_data.clean_up_conversation_state(t)
         except Exception as e:
-            log.error("Unhandled exception in conversation", e)
             context.user_data.clean_up_conversation_state(t)
+            raise e
 
     return Depends(extract_state)
 
@@ -78,8 +78,12 @@ async def tx(context: ApplicationContext):
             yield session
             await session.commit()
         except Exception as e:
-            log.error("Unhandled exception in SQL session", error=e)
             await session.rollback()
+            log.info(
+                "Uncaught Exception during SQLAlchemy session, rolling back transaction",
+                reason=e,
+            )
+            raise e
 
 
 DBSession = Annotated[AsyncSession, tx]

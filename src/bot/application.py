@@ -19,7 +19,6 @@ log = structlog.get_logger()
 
 settings = Settings()  # type: ignore
 
-
 @command_handler("role")
 @inject
 async def set_role(
@@ -32,10 +31,11 @@ async def set_role(
         log.warn("Unauthorized user tried admin command", user=user, command="set_role")
         await update.effective_message.reply_text("Unauthorized")
         return
+
     if context.args is None or len(context.args) != 2:
         await update.effective_message.reply_text("Usage: /admin <user_id> <role>")
         return
-    log.info(context.args)
+
     target_user_id, role = context.args
     target_user_id = int(target_user_id)
     log.info("Promoting user", target_user_id=target_user_id, role=role)
@@ -118,5 +118,6 @@ application: Application = (
     .post_init(on_startup)
     .build()
 )
-application.add_error_handler(handle_error)
+
+application.add_error_handler(handle_error) # type: ignore
 application.add_handlers([start, set_role])

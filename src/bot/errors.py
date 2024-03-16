@@ -8,7 +8,6 @@ log = structlog.get_logger()
 class UserNotRegistered(Exception):
     pass
 
-
 async def handle_error(update: Update, context: ApplicationContext):
     e = context.error
     if not e:
@@ -20,4 +19,4 @@ async def handle_error(update: Update, context: ApplicationContext):
                 text="You are not registered. Please register first with /start",
             )
         case _:
-            log.error("Unhandled exception", error=e)
+            log.error("Unhandled exception", exc_info=e)
