@@ -1,10 +1,9 @@
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Any, Dict, Generic, List, TypeVar
-from sqlalchemy import Enum, Update
+from typing import Any
+from sqlalchemy import Update
 from telegram.ext import BaseHandler, ConversationHandler
-from src.bot.common.context import ApplicationContext
+
 
 @dataclass(slots=True)
 class ConversationBuilder:
@@ -23,6 +22,7 @@ class ConversationBuilder:
     def state(self, state):
         def decorator(handler: BaseHandler[Update, Any]):
             self.states.setdefault(state, list()).append(handler)
+
         return decorator
 
     def entry_point(self, handler: BaseHandler[Update, Any]):
@@ -47,5 +47,5 @@ class ConversationBuilder:
             allow_reentry=self.allow_reentry,
             name=self.name,
             persistent=self.persistent,
-            map_to_parent=self.map_to_parent
+            map_to_parent=self.map_to_parent,
         )

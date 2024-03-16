@@ -67,15 +67,16 @@ def arbitrary_callback_query_handler(
     answer_query_after: bool = True,
     clear_callback_data: bool = False,
 ):
-        def inner_decorator(f) -> CallbackQueryHandler:
-            if answer_query_after:
-                f = answer_inline_query_after(f)
-            if clear_callback_data:
-                f = drop_callback_data_after(f)
-            handler = CallbackQueryHandler(pattern=query_data_type, callback=f)
-            return handler
+    def inner_decorator(f) -> CallbackQueryHandler:
+        if answer_query_after:
+            f = answer_inline_query_after(f)
+        if clear_callback_data:
+            f = drop_callback_data_after(f)
+        handler = CallbackQueryHandler(pattern=query_data_type, callback=f)
+        return handler
 
-        return inner_decorator
+    return inner_decorator
+
 
 class CallbackButton(BaseModel):
     """

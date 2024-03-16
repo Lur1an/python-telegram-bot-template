@@ -1,14 +1,12 @@
-import json
 from fast_depends import Depends, inject
-from pydantic_core.core_schema import arguments_schema
-from sqlalchemy import exists, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio.session import AsyncSession, async_sessionmaker
-from sqlalchemy.sql.selectable import Exists
 from telegram import Update
 from telegram.ext import ApplicationBuilder, Application
 from src.bot.common.context import ApplicationContext, context_types
-from src.bot.common.wrappers import command_handler, restricted_action
-from src.bot.extractors import CurrentUser, tx, load_user
+from src.bot.common.wrappers import command_handler
+from src.bot.errors import handle_error
+from src.bot.extractors import tx, load_user
 from src.db.config import create_engine
 from src.db.tables import User, UserRole
 from src.settings import Settings
@@ -27,8 +25,8 @@ settings = Settings()  # type: ignore
 async def set_role(
     update: Update,
     context: ApplicationContext,
-    session: AsyncSession = Depends(tx),
     user: User = Depends(load_user),
+    session: AsyncSession = Depends(tx),
 ):
     if not user.role == UserRole.ADMIN:
         log.warn("Unauthorized user tried admin command", user=user, command="set_role")
@@ -63,6 +61,7 @@ async def start(
         telegram_id=tg_user.id,
         is_bot=tg_user.is_bot,
         telegram_username=tg_user.username,
+        full_name=tg_user.full_name,
     )
     if tg_user.id == context.settings.FIRST_ADMIN:
         log.warn("First admin detected", user=update.effective_user)
@@ -98,17 +97,17 @@ async def on_startup(app: Application):
         ],
     )
     telegram_logs = []
-
     if settings.LOGGING_CHANNEL:
         telegram_logs.append(settings.LOGGING_CHANNEL)
+        await app.bot.send_message(
+            chat_id=settings.LOGGING_CHANNEL,
+            text="Bot started",
+        )
     error_forwarder = ErrorForwarder(
         app.bot, telegram_logs, log_levels=["ERROR", "WARNING"]
     )
     error_forwarder.setFormatter(telegram_formatter)
     logging.getLogger().addHandler(error_forwarder)
-
-    log.error("Bot started", deez={"nuts": "your chin"})
-    log.info("Bot started", deez={"nuts": "your chin"})
 
 
 application: Application = (
@@ -119,5 +118,5 @@ application: Application = (
     .post_init(on_startup)
     .build()
 )
-
+application.add_error_handler(handle_error)
 application.add_handlers([start, set_role])

@@ -35,6 +35,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True, init=False)
     telegram_id: Mapped[int] = mapped_column(unique=True, nullable=False, index=True)
     is_bot: Mapped[bool] = mapped_column(nullable=False)
+    full_name: Mapped[str] = mapped_column(nullable=True)
     telegram_username: Mapped[str | None] = mapped_column(nullable=True)
     """
     Can be hidden due to privacy settings
