@@ -38,6 +38,11 @@ async def set_role(
 
     target_user_id, role = context.args
     target_user_id = int(target_user_id)
+
+    if target_user_id == user.telegram_id:
+        await update.effective_message.reply_text("You can't change your own role")
+        return
+
     log.info("Promoting user", target_user_id=target_user_id, role=role)
     role = UserRole(role.lower())
     if target_user := await session.scalar(

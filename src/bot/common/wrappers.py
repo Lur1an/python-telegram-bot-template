@@ -15,7 +15,6 @@ from telegram.ext import (
 from telegram.ext.filters import BaseFilter
 
 from src.bot.common.context import ApplicationContext
-from src.db.tables import User
 
 import structlog
 
