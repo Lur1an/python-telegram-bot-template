@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any
-from sqlalchemy import Update
+from telegram import Update
 from telegram.ext import BaseHandler, ConversationHandler
 
 

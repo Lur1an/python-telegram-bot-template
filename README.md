@@ -634,3 +634,25 @@ async def delete_item(
 ):
     ...
 ```
+
+### Conversation Builder
+I don't like how verbose building a `ConversationHandler` currently is, that is why I created a builder for it:
+
+```python
+builder = ConversationBuilder(conversation_timeout=69)
+
+FIRST_STATE, SECOND_STATE = range(0)
+
+@builder.entry_point
+@command_handler("trigger")
+async def entrypoint(update: Update, context: ApplicationContext):
+    pass
+
+@builder.state(FIRST_STATE)
+@any_message
+async def do_something(update: Update, context: ApplicationContext):
+    pass
+
+handler = builder.build()
+```
+This builds a `ConversationHandler` that enters on command `"trigger"` and on the state `FIRST_STATE` executes `do_something`. For now you still need to return the expected states from your handlers as per documentation, however in the future I want to add decorators like `@next_state(SECOND_STATE)` so one can't forget.
