@@ -1,9 +1,3 @@
-# 🚧 WORK IN PROGRESS, COOKING UP COOL STUFF...🚧
-
-I will start migrating a lot of utility functions into https://github.com/Lur1an/ptb-ext in the coming weeks to debloat the template, some of the docs below are probably outdated and will be moved gradually to the `ptb-ext` repo.
-
-Also started working on setting up a good base for persistence using a typical SQL stack with `alembic + SQLAlchemy + SQLite`,
-
 # python-telegram-bot-template
 
 This repository serves as a template to create
@@ -15,16 +9,11 @@ maintainable and growable software architecture.
 This template is mostly meant for projects that start with quite a bit of complexity and whose requirements are going to
 evolve as time passes.
 
-### Please read!
-
-The documentation from this point forward may be incorrect, I did some refactoring for a few wrapper and edited a few typings as my new LSP gave me a lot of errors (went from Pycharm to Pyright).
-I will update this documentation in the future.
-
 ### Foreword
 
 I made this template to provide an implementation for a few things that I always ended up implementing in my _telegram
 bot_ projects, custom `ApplicationContext` for `context.bot_data, context.chat_data, context.user_data` typing,
-decorators/wrappers for handlers to cut down on a bit of boilerplate and implement common behaviours. This will take the
+decorators/wrappers/dependency_injection for handlers to cut down on a bit of boilerplate and implement common behaviours. This will take the
 mind off technicalities and instead help put your focus where it belongs, on the project.
 
 ### Run the Bot
@@ -37,7 +26,7 @@ from the `.env` file in the project and does a complete teardown + buildup of yo
 
 #### Dev mode
 
-- Run: `poetry run python -m src.main --dev` or execute the `main` function in your debugger which will default to `dev` mode. (make sure the environment is activated by running `poetry shell` first)
+- Run: `poetry run python -m src.main --dev` or execute the `main` function directly in your debugger which will default to `dev` mode. (make sure the environment is activated by running `poetry shell` first)
 
 #### Production mode
 
@@ -45,6 +34,10 @@ Production mode runs alembic migrations against your database before starting th
 
 - `BOT_TOKEN` you can get one from **_[Botfather](https://t.me/botfather)_**
 - `DB_PATH` the path to your database, relative from where the bot is executing. (I recommend choosing `/data/yourdb.sqlite3`, as a `/data` directory is automatically created in the Docker container and can be mounted to a persistent volume)
+- `FIRST_ADMIN` your `telegram_id`, this can be set to give you automatically the `ADMIN` role when you register in your own bot
+
+The following are optional:
+- `LOGGING_CHANNEL` a *telegram* `chat_id` that the `ErrorForwarder` can use to send *JSON* logs to. Very useful, usually set to a shared channel or your own id.
 
 Finally:
 
@@ -67,24 +60,24 @@ Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    telegram_id: Mapped[int] = mapped_column(unique=True, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    telegram_id: Mapped[int] = mapped_column(unique=True, nullable=False, index=True)
     is_bot: Mapped[bool] = mapped_column(nullable=False)
-    telegram_username: Mapped[str] = mapped_column(nullable=True)
+    full_name: Mapped[str] = mapped_column(nullable=True)
+    telegram_username: Mapped[str | None] = mapped_column(nullable=True)
     """
     Can be hidden due to privacy settings
     """
+    role: Mapped[UserRole] = mapped_column(nullable=False, default=UserRole.USER)
 ```
-
 Now lets run `alembic revision --autogenerate -m "user table"`, a wild `247a9e59a9a8_user_table.py` just appeared!!
 
 ```python
-"""
-user table
+"""user table
 
-Revision ID: 247a9e59a9a8
-Revises:
-Create Date: 2023-11-26 10:03:21.771222
+Revision ID: b1170ff4029d
+Revises: 
+Create Date: 2024-03-16 10:17:30.936366
 
 """
 from typing import Sequence, Union
@@ -94,7 +87,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '247a9e59a9a8'
+revision: str = 'b1170ff4029d'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -106,15 +99,23 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('telegram_id', sa.Integer(), nullable=False),
     sa.Column('is_bot', sa.Boolean(), nullable=False),
+    sa.Column('full_name', sa.String(), nullable=True),
     sa.Column('telegram_username', sa.String(), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('telegram_id')
+    sa.Column('role', sa.Enum('USER', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('admin', sa.Boolean(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('users', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_users_telegram_id'), ['telegram_id'], unique=True)
+
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
+    with op.batch_alter_table('users', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_users_telegram_id'))
+
     op.drop_table('users')
     # ### end Alembic commands ###
 ```
@@ -160,13 +161,57 @@ def downgrade() -> None:
 
 The Specific SQL shown in the example is out of scope of this template, but this should showcase how you can tweak the database to your liking!
 
+#### Pydantic Models in SQLAlchemy
+Often your data goes beyond the constraints of flat tables, and you wish you could just embed some good ol *JSON* into your database, use `pytantic` models in your code, and have everything just automatically serialize/deserialize. I took care of the boilerplate for this:
+
+```python
+# tables.py
+class PydanticType(sa.types.TypeDecorator):
+    impl = sa.types.JSON
+
+    def __init__(self, pydantic_type):
+        super().__init__()
+        self.pydantic_type = pydantic_type
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(sa.JSON())
+
+    def process_bind_param(self, value, dialect):
+        return value.model_dump() if value else None
+
+    def process_result_value(self, value, dialect):
+        return self.pydantic_type.model_validate(value) if value else None
+
+# env.py
+def render_item(type_, obj, autogen_context):
+    """Apply custom rendering for PydanticType."""
+    if type_ == "type" and isinstance(obj, tables.PydanticType):
+        return "sa.JSON()"
+    return False
+```
+
+
 ### Devops and Dependency management
 
 This project comes with a barebone CI pipeline.
 
 1. It tests your code using pytest, the same as it would locally with `poetry run python -m pytest`
-2. It builds the Docker image
-3. It pushes the Docker image to a repository, just open up `ci.yml` and fill out the secrets in your own repository
+2. It builds the Docker image 
+3. It pushes the Docker image to a repository
+4. It deploys the bot to a server over some very bare-bone SSH. (remove `if: false` from the `deploy-ssh` job)
+
+Set the following Github secrets:
+- `DOCKERHUB_USERNAME`: Docker Hub username
+- `DOCKERHUB_PASSWORD`: Docker Hub password
+- `DOCKERHUB_TARGET`: Docker image tag for pushing and pulling
+- `SSH_HOST`: SSH host for deployment
+- `SSH_USER`: SSH username for deployment
+- `SSH_KEY`: SSH private key for deployment
+- `SSH_PORT`: SSH port for deployment
+- `CONTAINER_NAME`: Name for the Docker container
+- `BOT_TOKEN`: Token for the bot
+- `FIRST_ADMIN`: Telegram ID of the first admin user you want to create
+- `LOGGING_CHANNEL`: Channel for logging purposes
 
 ### Configuration
 
@@ -188,7 +233,34 @@ class Settings(TelegramSettings, DBSettings):
 
 
 settings = Settings()
+```
 
+### logging
+This template moved over to `structlog`: https://www.structlog.org/en/stable/, 
+it is configured to log everything through the std `logging` module and use `structlog` formatters & processors.
+This allows libraries like `ptb` to still output good logs whilst enabling you to make full use of `structlog`.
+
+Error logs are sent as *JSON* inside a codeblock to the designated logging channel.
+
+### Global Error Handling
+Now that the app uses dependency injection I cant abort handlers and execute logic when extracing a dependency fails. This
+is why I created a global error handler inside of `errors.py`. All uncaught exceptions just get logged with stacktrace,
+you can created designated exceptions like `UserNotRegistered` to then execute specific logic when you throw them from your
+dependency extractors:
+```python
+async def handle_error(update: Update, context: ApplicationContext):
+    e = context.error
+    if not e:
+        return
+    match e:
+        case UserNotRegistered():
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="You are not registered. Please register first with /start",
+            )
+        case _:
+            # Log out the Stacktrace for unhandled exceptions
+            log.error("Unhandled exception", exc_info=e)
 ```
 
 ### Application State
@@ -201,25 +273,77 @@ When you use python-telegram-bot you have access to 3 shared objects on your `co
 
 Working with raw dicts is error prone, that's why python-telegram-bot let's you define your own `CallbackContext` to
 replace the usual `ContextTypes.DEFAULT`.
-The boilerplate needed for your `ContextTypes` is already set up inside of `src/bot/common/context.py`
+The boilerplate needed for your `ContextTypes` is already set up inside of `src/bot/common/context.py` and comes with batteries included:
 
 ```python
 class BotData:
-    pass
+    _db: async_sessionmaker[AsyncSession]
+    """
+    Your database session factory
+    """
+    _settings: Settings
+    """
+    Application settings
+    """
 
 class ChatData:
     pass
 
+ConversationState = TypeVar("ConversationState")
+
 class UserData:
-    pass
+    _current_session: AsyncSession | None = None
+    """
+    For every user you can cache the current session here to avoid opening multiple sessions in the same command. Useful for FastDepends DI
+    """
+    _conversation_state: dict[type, Any] = {}
+
+    def get_or_init_conversation_state(
+        self, cls: Type[ConversationState]
+    ) -> ConversationState:
+        return self._conversation_state.setdefault(cls, cls())
+
+    def clean_up_conversation_state(self, conversation_type: Type):
+        if conversation_type in self._conversation_state:
+            del self._conversation_state[conversation_type]
+
 
 class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
     # Define custom @property and utility methods here that interact with your context
-    pass
+    @asynccontextmanager
+    async def session(self):
+        # If called by a User, check if the user has a SQL session already open
+        if self.user_data:
+            if self.user_data._current_session:
+                yield self.user_data._current_session
+            else:
+                try:
+                    async with self.bot_data._db() as session:
+                        self.user_data._current_session = session
+                        yield session
+                finally:
+                    self.user_data._current_session = None
+        else:
+            async with self.bot_data._db() as session:
+                yield session
+
+    @property
+    def settings(self) -> Settings:
+        return self.bot_data._settings
+
+
+context_types = ContextTypes(
+    context=ApplicationContext, chat_data=ChatData, bot_data=BotData, user_data=UserData
+)
 ```
 
 You will find these classes in the `bot.common` module in `context.py`, you can edit the three classes above to define
-the state in your application depending on the context, the `ApplicationContext` class itself is used in the type signature for the context of your handlers and you can also define useful `@property` and other utility methods on it as well.
+the state in your application depending on the context, the `ApplicationContext` class itself is used in the type signature for the context of your handlers and you can also define useful `@property` and other utility methods on it as well. `BotData` comes with `_db` and `_settings` which are initialized in the `on_startup` method of the `Application`.
+To open a `SQLAlchemy` session just do:
+```python
+async with context.session() as s:
+    # your DB code
+```
 
 #### How are my Context classes initialized if I am only passing them as type-hints?
 
@@ -245,6 +369,20 @@ application: Application = (
 )
 ```
 
+### Dependency injection
+In this version of the template I moved away from decorators for the dependency injection and instead started using something more flexible: https://github.com/lancetnik/FastDepends
+To use this just annotate your methods with `@inject` before turning them into handlers:
+```python
+@command_handler("deez")
+async def nuts(
+    update: Update,
+    context: ApplicationContext,
+    session: AsyncSession = Depends(tx)
+)
+```
+Where `tx` is found inside of `extractors.py`, to learn more about dependency injection look up the original repo, or just follow the pattern I set.
+Note: `FastDepends` DI can look prettier by using `Annotated` types, however my Pyright hates it, so I'm not using it.
+
 ### Conversation State
 
 As you may have noticed, the three State objects that are present in the context have user, chat and global scope. A lot
@@ -253,43 +391,28 @@ inside either `chat_data` or `user_data`, as most of these flows in my experienc
 provided a default to achieve this without having to add a new field to your `UserData` class for every
 conversation-flow that you need to implement.
 
-```python
-class UserData:
-    _conversation_state: Dict[Type[ConversationState], ConversationState] = {}
-
-    def get_conversation_state(self, cls: Type[ConversationState]) -> ConversationState:
-        return self._conversation_state[cls]
-
-    def initialize_conversation_state(self, cls: Type[ConversationState]):
-        self._conversation_state[cls] = cls()
-
-    def clean_up_conversation_state(self, conversation_type: Type[ConversationState]):
-        del self._conversation_state[conversation_type]
-```
-
 The `UserData` class comes pre-defined with a dictionary to hold conversation state, the type of the object
 itself is used as a key to identify it, this necessitates that for a conversation state type `T` there is at most 1
 active conversation **_per user_** that uses this type for its state.
 
-To avoid leaking memory this object needs to be cleared from the dictionary when you are done with it, to take care of
-initialization and cleanup I have created three decorators:
-
+To avoid leaking memory this object needs to be cleared from the dictionary when you are done with it, this happens automatically
+in the dependency injection extractor:
 ```python
-def init_stateful_conversation(conversation_state_type: Type[ConversationState]):
-    ...
+def ConversationState(t: type, clear: bool = False):
+    def extract_state(context: ApplicationContext):
+        try:
+            yield context.user_data.get_or_init_conversation_state(t)
+            if clear:
+                context.user_data.clean_up_conversation_state(t)
+        except Exception as e:
+            context.user_data.clean_up_conversation_state(t)
+            raise e
 
-
-def inject_conversation_state(conversation_state_type: Type[ConversationState]):
-    ...
-
-
-def cleanup_stateful_conversation(conversation_state_type: Type[ConversationState]):
-    ...
+    return Depends(extract_state)
 ```
 
-Using these you can decorate your conversation entry/exit points, to take care of the state and also inject the object
-into your function as an argument. `cleanup_stateful_conversation` also makes sure to catch any unexpected exceptions
-and return `Conversation handler.END` when it finishes.
+Using `ConversationState(T)` as the type for your dependency injection handles initialization of your default state object for that conversation.
+Unhandled exceptions make sure to clear the state. And if `clear = True`, which you should set in the last step of your conversation, state will be cleared.
 
 For example, let's define an entry point handler and an exit method for a conversation flow where a user needs to follow
 multiple steps to fill up a `OrderRequest` object. (I will ignore the implementation details for
@@ -297,50 +420,35 @@ a `ConversationHandler`, if you want to see a good example of how this works
 **_[click here](https://docs.python-telegram-bot.org/en/stable/examples.conversationbot.html)_**)
 
 ```python
-@init_stateful_conversation(OrderRequest)
+@inject
 async def start_order_request(
         update: Update,
         context: ApplicationContext,
-        order_request: OrderRequest
+        order_request: OrderRequest = ConversationState(OrderRequest)
 ):
     ...
 
 
-@inject_conversation_state(OrderRequest)
+@inject
 async def add_item(
         update: Update,
         context: ApplicationContext,
-        order_request: OrderRequest
+        order_request: OrderRequest = ConversationState(OrderRequest)
 ):
     ...
 
 
-@cleanup_stateful_conversation(OrderRequest)
+@inject
 async def file_order(
         update: Update,
         context: ApplicationContext,
-        order_request: OrderRequest
+        order_request: OrderRequest = ConversationState(OrderRequest)
 ):
     # Complete the order, persist to database, send messages, etc...
     ...
 ```
 
 ### Utility decorators
-
-```python
-def restricted_action(is_allowed: Callable[[Update, ApplicationContext], Awaitable[Any]]):
-    def inner_decorator(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
-        @wraps(f)
-        async def wrapped(update: Update, context: ApplicationContext):
-            if await is_allowed(update, context):
-                return await f(update, context)
-
-        return wrapped
-
-    return inner_decorator
-```
-
-This decorator is used to restrict handler access by using the function passed as parameter to the decorator to check.
 
 ```python
 def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):
@@ -363,36 +471,6 @@ logic, `update.effective_message.delete()` from time to time throws exceptions e
 does `bot.delete_message`, this decorator is a easy and safe way to abstract this away and make sure you tried your best
 to delete that message.
 
-```python
-def exit_conversation_on_exception(
-        _f: Callable[[Update, ApplicationContext], Any] = None, *,
-        user_message: str = "I'm sorry, something went wrong, try again or contact an Administrator."
-):
-    def inner_decorator(f: Callable[[Update, ApplicationContext], Any]):
-        @wraps(f)
-        async def wrapped(update: Update, context: ApplicationContext):
-            try:
-                return await f(update, context)
-            except Exception as e:
-                log.error(f"Encountered an error while handling conversation step: {e}")
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=user_message
-                )
-                context.chat_data.conversation_data = None
-                return ConversationHandler.END
-
-        return wrapped
-
-    if _f is None:
-        return inner_decorator
-    else:
-        return inner_decorator(_f)
-```
-
-This decorator catches any unchecked exceptions in your handlers inside of your conversation flow that you annotate with
-it and sends the poor user that had to interact with your **_(my)_** mess a message.
-
 ### CallbackQuery data injection
 
 Arbitrary callback data is an awesome feature of _python-telegram-bot_, it increases security of your application (
@@ -411,105 +489,17 @@ async def sample_handler(update: Update, context: ApplicationContext):
     # if you want you can also clear your callback data from your cache
 ```
 
-I prefer using my decorator:
+Now with dependency Injection:
 
 ```python
-def inject_callback_query(
-        _f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]] = None, *,
-        answer_query_after: bool = True,
-        clear_callback_data: bool = False,
+@inject
+async def sample_handler(
+    update: Update,
+    context: ApplicationContext,
+    my_data: CustomData = CallbackQuery(CustomData)
 ):
-    def inner_decorator(f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]):
-        @wraps(f)
-        async def wrapped(update: Update, context: ApplicationContext):
-            converted_data = cast(CallbackDataType, update.callback_query.data)
-            result = await f(update, context, converted_data)
-            if answer_query_after:
-                try:
-                    await update.callback_query.answer()
-                except Exception as e:
-                    log.error(f"Failed answering callback_query: {e}")
-            if clear_callback_data:
-                try:
-                    context.drop_callback_data(update.callback_query)
-                except KeyError as e:
-                    log.error(f"Failed dropping callback_query_data, couldn't find Key: {e}")
-
-            return result
-
-        return wrapped
-
-    if _f is None:
-        return inner_decorator
-    else:
-        return inner_decorator(_f)
-```
-
-Now you can write your handler like this:
-
-```python
-@inject_callback_query
-async def sample_handler(update: Update, context: ApplicationContext, my_data: CustomData):
     ...  # do stuff
 ```
-
-Since we are interacting with our `CustomData` type in our `CallbackQueryHandler` most of the time we only have 1
-handler for this defined Callback Type and always end up writing:
-
-```python
-custom_data_callback_handler = CallbackQueryHandler(callback=sample_handler, pattern=CustomData)
-```
-
-I added another decorator to turn the wrapped function directly into a `CallbackQueryHandler`:
-
-```python
-def arbitrary_callback_query_handler(
-        query_data_type: CallbackDataType, *,
-        inject: bool = True,
-        answer_query_after: bool = True,
-        clear_callback_data: bool = False
-):
-    if inject:
-        def inner_decorator(
-                f: Callable[[Update, ApplicationContext, CallbackDataType], Awaitable[Any]]
-        ) -> CallbackQueryHandler:
-            decorator = inject_callback_query(
-                answer_query_after=answer_query_after,
-                clear_callback_data=clear_callback_data
-            )
-            wrapped = decorator(f)
-            handler = CallbackQueryHandler(pattern=query_data_type, callback=wrapped)
-            return handler
-
-        return inner_decorator
-    else:
-        def inner_decorator(
-                f: Callable[[Update, ApplicationContext], Awaitable[Any]]
-        ) -> CallbackQueryHandler:
-            if answer_query_after:
-                f = answer_inline_query_after(f)
-            if clear_callback_data:
-                f = drop_callback_data_after(f)
-            handler = CallbackQueryHandler(pattern=query_data_type, callback=f)
-            return handler
-
-        return inner_decorator
-
-```
-
-This will take care of instantiating your `CallbackQueryHandler`, putting this together with the above sample we can
-write it like this:
-
-```python
-@arbitrary_callback_query_handler(CustomData)
-async def sample_handler(update: Update, context: ApplicationContext, my_data: CustomData):
-    ...  # do stuff
-```
-
-Keep in mind that this approach is a bit limited if you want to handle types of `CustomData` callback queries
-differently depending on other patterns like chat or message content, python-telegram-bot lets you combine patterns
-together with binary logic operators, as I have rarely used this I have not added parameters to the decorator for this
-case, I might in the future. Since this is just a template you can also do it yourself for your project!
 
 ### Project Structure
 
@@ -520,22 +510,23 @@ I would recommend you keep your code loosely coupled and keep cohesion high, sep
 │   ├── bot
 │   │   ├── application.py
 │   │   ├── common
+│   │   │   ├── callback.py
 │   │   │   ├── context.py
 │   │   │   └── wrappers.py
-│   │   ├── __init__.py
+│   │   │   └── conversation.py
 │   ├── orders
 │   │   │   ├── conversations
 │   │   │   │  ├── create_order.py
 │   │   │   │  ├── edit_order.py
-│   │   │   ├── persistence.py
 │   │   │   ├── models.py
+│   │   │   ├── queries.py
 │   │   │   ├── handlers.py
 │   ├── db
 │   │   ├── config.py
-│   │   ├── core.py
-│   │   ├── encoders.py
-│   ├── __init__.py
+│   │   ├── tables.py
 │   ├── main.py
+│   ├── errors.py
+│   ├── extractors.py
 │   ├── resources
 │   └── settings.py
 └── tests
@@ -544,18 +535,17 @@ I would recommend you keep your code loosely coupled and keep cohesion high, sep
 
 I added a folder `orders` that could represent a way to add a feature to interact with orders:
 
-- `persistence.py` can contain your class `OrderDAO` and `OrderEntity` to model your database persistence
-- `models.py` can contain other object types you need, like classes for custom callback queries or conversation state
 - `handlers.py` is where you define the handlers needed to interact with this module through the telegram api, export a
   list of handlers that you import in `application.py` and then add to the `Application` object
   through `add_handlers()`. This list of handlers has to contain all the handlers of the module
+- `queries.py` if you need more than just simple queries and want to move them, create function that take an `AsyncSession` as an argument and execute your database logic.
 - `conversations` contains a file for every `ConversationHandler` the module defines, since it takes a lot of code to
   define a single conversation, with it's states, state-management, fallbacks etc. a single file for every conversation
   flow seems okay.
 
 These are just examples how the structure could look like.
 
-### Cool wrappers
+### Decorators
 
 ```python
 def command_handler(command: str, *, allow_group: bool = False):
@@ -571,43 +561,6 @@ def command_handler(command: str, *, allow_group: bool = False):
 
 Shortcut to create command handlers, by default they are set to only work in private chats and have to be explicitly
 activated for group chats.
-
-```python
-def load_user(
-        _f: Callable[[Update, ApplicationContext, User], Coroutine[Any, Any, RT]] = None,
-        *,
-        required: bool = False,
-        error_message: Optional[str] = None
-):
-    def inner_decorator(f: Callable[[Update, ApplicationContext, User], Coroutine[Any, Any, RT]]):
-        @wraps(f)
-        async def wrapped(update: Update, context: ApplicationContext):
-            user = context.get_cached_user(update.effective_user.id)
-            if user is None:
-                dao = UserDAO(db)
-                user = await dao.find_by_telegram_id(update.effective_user.id)
-            if user is None and required:
-                if error_message is not None:
-                    await context.bot.send_message(
-                        chat_id=update.effective_chat.id,
-                        text=error_message
-                    )
-                return
-            if user is not None:
-                context.cache_user(user)
-            return await f(update, context, user)
-
-        return wrapped
-
-    if _f is None:
-        return inner_decorator
-    else:
-        return inner_decorator(_f)
-```
-
-This decorator allows you to pre-load the user before actually handling the event and avoids the usual 'check in
-cache' -> 'load from database' flow, and if user is not found and you want to send a default error message you can also
-set this from the decorator.
 
 ### Reducing boilerplate for [user <-> data] interactions
 
@@ -673,6 +626,11 @@ Now that we have an action we would define it's `CallbackQueryHandler` using the
 
 ```python
 @arbitrary_callback_query_handler(DELETE_ITEM)
-async def delete_item(update: Update, context: ApplicationContext, action: DELETE_ITEM):
+@inject
+async def delete_item(
+    update: Update,
+    context: ApplicationContext,
+    action: DELETE_ITEM = CallbackQuery(DELETE_ITEM)
+):
     ...
 ```

@@ -72,7 +72,6 @@ async def tx(context: ApplicationContext):
     """
         Opens a session and commits it after the handler has been executed. Rollback on uncaught exceptions
     l"""
-    log.info("Starting tx")
     async with context.session() as session:
         try:
             yield session

@@ -19,4 +19,5 @@ async def handle_error(update: Update, context: ApplicationContext):
                 text="You are not registered. Please register first with /start",
             )
         case _:
+            # Log out the Stacktrace for unhandled exceptions
             log.error("Unhandled exception", exc_info=e)

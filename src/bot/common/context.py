@@ -5,7 +5,7 @@ from typing import (
     Type,
     Any,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from telegram.ext import (
     CallbackContext,
     ExtBot,
@@ -23,8 +23,13 @@ log = structlog.getLogger()
 
 class BotData:
     _db: async_sessionmaker[AsyncSession]
-    _current_session: AsyncSession | None = None
+    """
+    Your database session factory
+    """
     _settings: Settings
+    """
+    Application settings
+    """
 
 
 class ChatData:
@@ -35,6 +40,10 @@ ConversationState = TypeVar("ConversationState")
 
 
 class UserData:
+    _current_session: AsyncSession | None = None
+    """
+    For every user you can cache the current session here to avoid opening multiple sessions in the same command. Useful for FastDepends DI
+    """
     _conversation_state: dict[type, Any] = {}
 
     def get_or_init_conversation_state(
@@ -51,15 +60,20 @@ class ApplicationContext(CallbackContext[ExtBot, UserData, ChatData, BotData]):
     # Define custom @property and utility methods here that interact with your context
     @asynccontextmanager
     async def session(self):
-        if self.bot_data._current_session is not None:
-            yield self.bot_data._current_session
+        # If called by a User, check if the user has a SQL session already open
+        if self.user_data:
+            if self.user_data._current_session:
+                yield self.user_data._current_session
+            else:
+                try:
+                    async with self.bot_data._db() as session:
+                        self.user_data._current_session = session
+                        yield session
+                finally:
+                    self.user_data._current_session = None
         else:
-            try:
-                async with self.bot_data._db() as session:
-                    self.bot_data._current_session = session
-                    yield session
-            finally:
-                self.bot_data._current_session = None
+            async with self.bot_data._db() as session:
+                yield session
 
     @property
     def settings(self) -> Settings:

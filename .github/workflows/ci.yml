@@ -48,3 +48,26 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_TARGET }}
+
+  deploy-ssh:
+    if: false
+    needs: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            docker pull ${{ secrets.DOCKERHUB_TARGET }}
+            docker stop ${{ secrets.CONTAINER_NAME }}
+            docker rm ${{ secrets.CONTAINER_NAME }}
+            docker run --name "${{ secrets.CONTAINER_NAME }}" \
+            -e "DB_PATH=/data/bot.db" \
+            -e "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" \
+            -e "FIRST_ADMIN=${{ secrets.FIRST_ADMIN }}" \
+            -e "LOGGING_CHANNEL=${{ secrets.LOGGING_CHANNEL }}" \
+            -v ~/${{ secrets.CONTAINER_NAME }}:/data \
+            ${{ secrets.DOCKERHUB_TARGET }}

@@ -24,8 +24,8 @@ settings = Settings()  # type: ignore
 async def set_role(
     update: Update,
     context: ApplicationContext,
-    user: User = Depends(load_user),
     session: AsyncSession = Depends(tx),
+    user: User = Depends(load_user),
 ):
     if not user.role == UserRole.ADMIN:
         log.warn("Unauthorized user tried admin command", user=user, command="set_role")
@@ -33,18 +33,27 @@ async def set_role(
         return
 
     if context.args is None or len(context.args) != 2:
-        await update.effective_message.reply_text("Usage: /admin <user_id> <role>")
+        await update.effective_message.reply_text("Usage: /role <user_id> <role>")
         return
 
     target_user_id, role = context.args
-    target_user_id = int(target_user_id)
+    try:
+        target_user_id = int(target_user_id)
+    except ValueError:
+        await update.effective_message.reply_text("User id must be an integer")
+        return
 
     if target_user_id == user.telegram_id:
         await update.effective_message.reply_text("You can't change your own role")
         return
 
+    try:
+        role = UserRole(role.lower())
+    except ValueError:
+        await update.effective_message.reply_text("Invalid role")
+        return
+
     log.info("Promoting user", target_user_id=target_user_id, role=role)
-    role = UserRole(role.lower())
     if target_user := await session.scalar(
         select(User).where(User.telegram_id == target_user_id)
     ):
