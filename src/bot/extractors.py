@@ -33,22 +33,6 @@ def ConversationState(t: type, clear: bool = False):
     return Depends(extract_state)
 
 
-async def load_user(update: Update, context: ApplicationContext) -> User:
-    """
-    Extractor for the current user. Requires a `session` dependency to be present in function signature.
-    """
-    async with context.session() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == update.effective_user.id)
-        )
-    if user := result.scalar_one_or_none():
-        return user
-    else:
-        raise UserNotRegistered
-
-
-CurrentUser = Annotated[User, Depends(load_user)]
-
 
 def CallbackQuery(t: type):
     """
@@ -70,8 +54,8 @@ def CallbackQuery(t: type):
 
 async def tx(context: ApplicationContext):
     """
-        Opens a session and commits it after the handler has been executed. Rollback on uncaught exceptions
-    l"""
+    Opens a session and commits it after the handler has been executed. Rollback on uncaught exceptions
+    """
     async with context.session() as session:
         try:
             yield session
@@ -84,5 +68,20 @@ async def tx(context: ApplicationContext):
             )
             raise e
 
-
 DBSession = Annotated[AsyncSession, tx]
+
+async def load_user(update: Update, session = Depends(tx)) -> User:
+    """
+    Extractor for the current user. Requires a `session` dependency to be present in function signature.
+    """
+    result = await session.execute(
+        select(User).where(User.telegram_id == update.effective_user.id)
+    )
+    if user := result.scalar_one_or_none():
+        return user
+    else:
+        raise UserNotRegistered
+
+
+CurrentUser = Annotated[User, Depends(load_user)]
+

@@ -162,7 +162,7 @@ def downgrade() -> None:
 The Specific SQL shown in the example is out of scope of this template, but this should showcase how you can tweak the database to your liking!
 
 #### Pydantic Models in SQLAlchemy
-Often your data goes beyond the constraints of flat tables, and you wish you could just embed some good ol *JSON* into your database, use `pytantic` models in your code, and have everything just automatically serialize/deserialize. I took care of the boilerplate for this:
+Often your data goes beyond the constraints of flat tables, and you wish you could just embed some good ol *JSON* into your database, use `pydantic` models in your code, and have everything just automatically serialize/deserialize. I took care of the boilerplate for this:
 
 ```python
 # tables.py
@@ -292,10 +292,6 @@ class ChatData:
 ConversationState = TypeVar("ConversationState")
 
 class UserData:
-    _current_session: AsyncSession | None = None
-    """
-    For every user you can cache the current session here to avoid opening multiple sessions in the same command. Useful for FastDepends DI
-    """
     _conversation_state: dict[type, Any] = {}
 
     def get_or_init_conversation_state(
