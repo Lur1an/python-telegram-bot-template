@@ -2,6 +2,7 @@ import asyncio
 import logging.config
 import structlog
 import sys
+import os
 from src.db.config import create_engine
 from src.settings import DBSettings
 
@@ -10,7 +11,10 @@ log = structlog.getLogger()
 
 async def create_db():
     db_path = DBSettings().DB_PATH
-    log.info("Creating database", db_path=db_path)
+    if os.path.exists(db_path):
+        log.info("Database already exists, re-using", db_path=db_path)
+        return
+    log.info("Creating database from scratch", db_path=db_path)
     engine = create_engine(db_path)
     from src.db.tables import Base
 
@@ -57,7 +61,7 @@ if __name__ == "__main__":
                     "()": structlog.stdlib.ProcessorFormatter,
                     "processors": [
                         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                        structlog.dev.ConsoleRenderer(colors=False),
+                        structlog.processors.JSONRenderer(),
                     ],
                     "foreign_pre_chain": pre_chain,
                 },
