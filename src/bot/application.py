@@ -11,6 +11,7 @@ from src.db.config import create_engine
 from src.db.tables import User, UserRole
 from src.settings import Settings
 from ptb_ext.logging_ext import ErrorForwarder
+
 import logging
 import structlog
 

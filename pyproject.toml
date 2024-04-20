@@ -9,6 +9,8 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "^3.11"
 python-telegram-bot = {extras = ["all"], version = "^20.1"}
+# rustlib = { path = "./rustlib", develop = true }
+rustlib = { path = "./rustlib/target/wheels/rustlib-0.1.0-cp311-cp311-linux_x86_64.whl" }
 asyncio = "^3.4.3"
 aiosqlite = "^0.19.0"
 sqlalchemy = "^2.0.22"
@@ -27,6 +29,7 @@ pytest-env = "^0.8.1"
 black = "^23.7.0"
 python-dotenv = "^1.0.0"
 debugpy = "^1.8.1"
+maturin = "^1.5.1"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
