@@ -33,10 +33,6 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-cache
 
-      - name: Build Rust Library
-        run: maturin develop
-        working-directory: rustlib
-
       - name: Run tests
         run: poetry run python -m pytest
 
