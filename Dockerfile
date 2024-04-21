@@ -11,7 +11,7 @@ WORKDIR /app
 
 COPY pyproject.toml poetry.lock ./
 COPY rustlib ./rustlib
-RUN pip install $(find rustlib/target/wheels -name "*.whl" | head -n 1)
+RUN pip install $(find rustlib/target/wheels -name "*.whl" | head -n 1)pip install ./rustlib
 RUN touch README.md
 
 RUN poetry install --only main --no-root && rm -rf $POETRY_CACHE_DIR
