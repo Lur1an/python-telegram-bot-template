@@ -104,12 +104,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      -
-        name: Login to Docker Hub
-        uses: docker/login-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
       -
         name: Create manifest list and push
         working-directory: /tmp/digests
@@ -123,7 +123,7 @@ jobs:
 
   deploy-ssh:
     if: false
-    needs: build
+    needs: merge
     runs-on: ubuntu-latest
     steps:
       - uses: appleboy/ssh-action@v0.1.10
