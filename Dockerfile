@@ -1,4 +1,9 @@
-FROM python:3.11-buster as builder
+FROM ghcr.io/pyo3/maturin as maturinbuilder
+COPY rustlib rustlib
+RUN mv rustlib/* .
+# FROM python:3.11-buster as builder
+FROM rust:latest as builder
+RUN apt-get update && apt-get install -y musl-tools
 
 RUN pip install poetry==1.8.2
 
@@ -11,10 +16,12 @@ WORKDIR /app
 
 COPY pyproject.toml poetry.lock ./
 COPY rustlib ./rustlib
-RUN pip install maturin 
 RUN touch README.md
 
 RUN poetry install --only main --no-root && rm -rf $POETRY_CACHE_DIR
+COPY --from=maturinbuilder /io/dist/wheels/* .
+RUN wheel=$(find . -name "*.whl" | head -n 1)
+RUN pip install "$wheel"
 
 # The runtime image, used to just run the code provided its virtual environment
 FROM python:3.11-slim-buster as runtime
