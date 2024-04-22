@@ -1008,19 +1008,6 @@ files = [
 ]
 
 [[package]]
-name = "rustlib"
-version = "0.1.0"
-description = ""
-optional = false
-python-versions = ">=3.8"
-files = []
-develop = true
-
-[package.source]
-type = "directory"
-url = "rustlib"
-
-[[package]]
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
@@ -1219,4 +1206,4 @@ devenv = ["check-manifest", "pytest (>=4.3)", "pytest-cov", "pytest-mock (>=3.3)
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "f2b94636dbe4af06fc2b521cd58cd3aa34642d6630acbb3497699e535e70a726"
+content-hash = "223a6397b93e27046205e815e784801abf4a5a92496d0bdc77b9378970d76763"
