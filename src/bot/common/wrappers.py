@@ -5,7 +5,6 @@ from typing import (
     Awaitable,
     Coroutine,
 )
-
 from telegram import Update
 from telegram.ext import (
     CommandHandler,
@@ -19,6 +18,30 @@ from src.bot.common.context import ApplicationContext
 import structlog
 
 log = structlog.getLogger()
+
+HandlerFunction = Callable[[Update, ApplicationContext], Coroutine[Any, Any, Any]]
+
+
+def reply_exception(
+    _f: HandlerFunction | None = None,
+    condition: Callable[[Update, ApplicationContext], Awaitable[bool]] | None = None,
+) -> Any:
+    def inner_decorator(f: HandlerFunction):
+        async def wrapper(update: Update, context: ApplicationContext):
+            try:
+                result = await f(update, context)
+                return result
+            except Exception as e:
+                if condition is None or await condition(update, context):
+                    await update.effective_message.reply_text(f"An error occurred: {e}")
+                raise
+
+        return wrapper
+
+    if _f is None:
+        return inner_decorator
+    else:
+        return inner_decorator(_f)
 
 
 def delete_message_after(f: Callable[[Update, ApplicationContext], Awaitable[Any]]):

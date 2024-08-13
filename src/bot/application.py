@@ -4,13 +4,13 @@ from sqlalchemy.ext.asyncio.session import AsyncSession, async_sessionmaker
 from telegram import Update
 from telegram.ext import ApplicationBuilder, Application
 from src.bot.common.context import ApplicationContext, context_types
-from src.bot.common.wrappers import command_handler
+from src.bot.common.wrappers import command_handler, reply_exception
 from src.bot.errors import handle_error
 from src.bot.extractors import tx, load_user
 from src.db.config import create_engine
 from src.db.tables import User, UserRole
 from src.settings import Settings
-from ptb_ext.logging_ext import ErrorForwarder
+from ptbcontrib.log_forwarder import LogForwarder
 
 import logging
 import structlog
@@ -21,6 +21,7 @@ log = structlog.get_logger()
 settings = Settings()  # type: ignore
 
 @command_handler("role")
+@reply_exception
 @inject
 async def set_role(
     update: Update,
@@ -118,7 +119,7 @@ async def on_startup(app: Application):
             chat_id=settings.LOGGING_CHANNEL,
             text="Bot started",
         )
-    error_forwarder = ErrorForwarder(
+    error_forwarder = LogForwarder(
         app.bot, telegram_logs, log_levels=["ERROR", "WARNING"]
     )
     error_forwarder.setFormatter(telegram_formatter)

@@ -1,5 +1,6 @@
 .idea
 .direnv
+.env
 shell.nix
 .envrc
  Byte-compiled / optimized / DLL files

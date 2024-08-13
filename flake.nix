@@ -23,6 +23,9 @@
             asyncio = prev.asyncio.overridePythonAttrs (old: {
               buildInputs = (old.buildInputs or [ ]) ++ [ prev.setuptools ];
             });
+            ptbcontrib = prev.ptbcontrib.overridePythonAttrs (old: {
+              buildInputs = (old.buildInputs or [ ]) ++ [ prev.setuptools ];
+            });
           });
         };
       in
